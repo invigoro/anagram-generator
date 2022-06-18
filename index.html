@@ -1,0 +1,31 @@
+<html>
+    <head>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</head>
+<body>
+    <div>
+        <input type="text" placeholder="Text to jumble" id="base-text" />
+        <div>
+            <ol id="output">
+                
+            </ol>
+        </div>
+    </div>
+    <script>
+        $(document).ready(function(){
+
+            $("#base-text").on("change", (input) => {
+                let val = $("#base-text").val().toUpperCase();
+                let output = new Set();
+                while(output.size < 50){
+                    output.add(val.split('').sort(function(){return 0.5-Math.random()}).join(''));
+                }
+                output = Array.from(output).join("\n");
+                console.log(output);
+                $("#output").html(`<li>${output}</li>`);
+            })
+
+});
+    </script>
+</body>
+</html>

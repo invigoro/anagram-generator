@@ -5,10 +5,7 @@
 <body>
     <div>
         <input type="text" placeholder="Text to jumble" id="base-text" />
-        <div>
-            <ol id="output">
-                
-            </ol>
+        <div id="output">
         </div>
     </div>
     <script>
@@ -20,9 +17,8 @@
                 while(output.size < 50){
                     output.add(val.split('').sort(function(){return 0.5-Math.random()}).join(''));
                 }
-                output = Array.from(output).join("\n");
-                console.log(output);
-                $("#output").html(`<li>${output}</li>`);
+                output = Array.from(output).map((val) => `<li>${val}</li>`).join('');
+                $("#output").html(`<ol>${output}</ol>`);
             })
 
 });

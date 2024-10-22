@@ -11,23 +11,31 @@
         </div>
     </div>
     <script>
+
+        rFact = (num) => {
+                if (num === 0) { return 1; }
+                else { return num * rFact(num - 1); }
+            }
         $(document).ready(function () {
 
 
-            function rFact(num) {
-                if (num === 0) { return 0; }
-                else { return num * rFact(num - 1); }
-            }
+
 
             $("#base-text").on("change", (input) => {
                 let val = $("#base-text").val().toUpperCase();
                 let output = new Set();
-                let output_count = 50;
-                if(val.length < 5)
-                    output_count = rFact(val.length)
+                let guesses = 0;
+                var output_count = 50;
+                if(val.length == 0) {
+                    output_count = 0;
+                }
+                else if(val.length < 5) {
+                    output_count = rFact(val.length);
+                }
 
-                while (output.size < output_count) {
+                while (output.size < output_count && guesses <= output_count * 2) {
                     output.add(val.split('').sort(function () { return 0.5 - Math.random() }).join(''));
+                    guesses++;
                 }
                 output = Array.from(output).map((val) => `<li>${val}</li>`).join('');
                 $("#output").html(`<ol>${output}</ol>`);

@@ -1,7 +1,9 @@
 <html>
-    <head>
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+<head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 </head>
+
 <body>
     <div>
         <input type="text" placeholder="Text to jumble" id="base-text" />
@@ -9,19 +11,30 @@
         </div>
     </div>
     <script>
-        $(document).ready(function(){
+        $(document).ready(function () {
+
+
+            function rFact(num) {
+                if (num === 0) { return 1; }
+                else { return num * rFact(num - 1); }
+            }
 
             $("#base-text").on("change", (input) => {
                 let val = $("#base-text").val().toUpperCase();
                 let output = new Set();
-                while(output.size < 50){
-                    output.add(val.split('').sort(function(){return 0.5-Math.random()}).join(''));
+                let output_count = 50;
+                if(val.length < 5)
+                    output_count = rFact(val.length)
+
+                while (output.size < output_count) {
+                    output.add(val.split('').sort(function () { return 0.5 - Math.random() }).join(''));
                 }
                 output = Array.from(output).map((val) => `<li>${val}</li>`).join('');
                 $("#output").html(`<ol>${output}</ol>`);
             })
 
-});
+        });
     </script>
 </body>
+
 </html>

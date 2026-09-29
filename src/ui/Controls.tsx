@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from 'react';
+import { WORD_LISTS, type WordList } from '../data/words';
 import type { LetterCase } from '../engine/format';
 import type { Order, Shape } from '../engine/scramble';
 import {
@@ -6,14 +7,24 @@ import {
   DIFFICULTIES,
   DIFFICULTY_RULES,
   difficultyOf,
+  MODES,
+  MOST_WORDS,
   ORDERS,
   parsePattern,
   SHAPES,
+  SHORTEST_WORDS,
   WORD_COUNTS,
   type Difficulty,
+  type Mode,
   type Settings,
   type Spacing,
 } from './settings';
+
+const MODE_LABELS: Record<Mode, { label: string; hint: string }> = {
+  scramble: { label: 'Scrambles', hint: 'The letters jumbled, as hard as you like.' },
+  words: { label: 'Real words', hint: 'Phrases of real words that use every letter.' },
+  hand: { label: 'By hand', hint: 'Write your own, with the letters left over and words that fit them.' },
+};
 
 const DIFFICULTY_LABELS: Record<Difficulty, { label: string; hint: string }> = {
   easy: { label: 'Easy', hint: 'Keeps the words, and their first letters.' },
@@ -27,6 +38,12 @@ const SHAPE_LABELS: Record<Shape, { label: string; hint: string }> = {
   run: { label: 'Run together', hint: 'Every letter in one run, with no spaces.' },
   count: { label: 'A number of words', hint: 'New words, of two letters or more where there are enough.' },
   pattern: { label: 'A pattern of lengths', hint: 'New words of the lengths given.' },
+};
+
+const LIST_LABELS: Record<WordList, { label: string; hint: string }> = {
+  common: { label: 'Common', hint: '38,612 everyday words.' },
+  standard: { label: 'Standard', hint: '61,037 words, with some less common ones.' },
+  large: { label: 'Large', hint: '124,697 words, some of them rare.' },
 };
 
 const CASES: readonly { value: LetterCase; label: string; name: string }[] = [
@@ -47,6 +64,8 @@ const ORDER_LABELS: Record<Order, { label: string; hint: string }> = {
   shuffled: { label: 'Shuffled', hint: 'In no order at all.' },
 };
 
+const PHRASE_ORDER_HINT = 'Few, common words first.';
+
 interface ControlsProps {
   text: string;
   onText: (text: string) => void;
@@ -60,7 +79,7 @@ interface ControlsProps {
 
 export function Controls({ text, onText, settings, onSettings, letterCount, seed, onReroll }: ControlsProps) {
   const id = useId();
-  const difficulty = difficultyOf(settings);
+  const { mode } = settings;
   return (
     <div className="controls">
       <div className="field">
@@ -80,6 +99,90 @@ export function Controls({ text, onText, settings, onSettings, letterCount, seed
         />
       </div>
 
+      <Choice
+        legend="Make"
+        value={mode}
+        options={MODES.map((value) => ({ value, label: MODE_LABELS[value].label }))}
+        onChange={(value) => onSettings({ mode: value })}
+        hint={MODE_LABELS[mode].hint}
+      />
+
+      {mode === 'scramble' && <ScrambleShape settings={settings} onSettings={onSettings} letterCount={letterCount} />}
+      {mode !== 'scramble' && <WordListChoice settings={settings} onSettings={onSettings} />}
+
+      <Choice legend="Case" value={settings.letterCase} options={CASES} onChange={(letterCase) => onSettings({ letterCase })} />
+      <Choice legend="Show" value={settings.spacing} options={SPACINGS} onChange={(spacing) => onSettings({ spacing })} />
+
+      <details className="more">
+        <summary>More options</summary>
+        <div className="more-options">
+          {mode === 'scramble' && <ScrambleOptions settings={settings} onSettings={onSettings} />}
+          {mode !== 'scramble' && <WordOptions settings={settings} onSettings={onSettings} />}
+          {mode !== 'hand' && (
+            <>
+              <div className="field">
+                <label className="label" htmlFor={`${id}-count`}>
+                  How many
+                </label>
+                <select id={`${id}-count`} value={settings.count} onChange={(event) => onSettings({ count: Number(event.target.value) })}>
+                  {COUNTS.map((count) => (
+                    <option key={count} value={count}>
+                      {count}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="field">
+                <label className="label" htmlFor={`${id}-order`}>
+                  Order
+                </label>
+                <select
+                  id={`${id}-order`}
+                  aria-describedby={`${id}-order-hint`}
+                  value={settings.order}
+                  onChange={(event) => onSettings({ order: event.target.value as Order })}
+                >
+                  {ORDERS.map((order) => (
+                    <option key={order} value={order}>
+                      {ORDER_LABELS[order].label}
+                    </option>
+                  ))}
+                </select>
+                <small className="hint" id={`${id}-order-hint`}>
+                  {mode === 'words' && settings.order === 'best' ? PHRASE_ORDER_HINT : ORDER_LABELS[settings.order].hint}
+                </small>
+              </div>
+            </>
+          )}
+        </div>
+      </details>
+
+      {mode !== 'hand' && (
+        <div className="reroll-row">
+          <button type="button" className="reroll" onClick={onReroll}>
+            <span aria-hidden="true">🎲</span> Reroll
+          </button>
+          <span className="seed" title="The same seed, text and settings always give the same list">
+            Seed {seed}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface PartProps {
+  settings: Settings;
+  onSettings: (changes: Partial<Settings>) => void;
+}
+
+/** A scramble's difficulty, and how its letters fall into words. */
+function ScrambleShape({ settings, onSettings, letterCount }: PartProps & { letterCount: number }) {
+  const id = useId();
+  const difficulty = difficultyOf(settings);
+  return (
+    <>
       <Choice
         legend="Difficulty"
         value={difficulty}
@@ -131,122 +234,186 @@ export function Controls({ text, onText, settings, onSettings, letterCount, seed
           {settings.shape === 'pattern' ? patternHint(settings.pattern, letterCount) : SHAPE_LABELS[settings.shape].hint}
         </small>
       </div>
+    </>
+  );
+}
+
+/** Which word list, and for phrases, how many words. */
+function WordListChoice({ settings, onSettings }: PartProps) {
+  const id = useId();
+  return (
+    <>
+      <Choice
+        legend="Word list"
+        value={settings.wordList}
+        options={WORD_LISTS.map((value) => ({ value, label: LIST_LABELS[value].label }))}
+        onChange={(wordList) => onSettings({ wordList })}
+        hint={LIST_LABELS[settings.wordList].hint}
+      />
+      {settings.mode === 'words' && (
+        <div className="field">
+          <label className="label" htmlFor={`${id}-most`}>
+            Most words
+          </label>
+          <select id={`${id}-most`} value={settings.maxWords} onChange={(event) => onSettings({ maxWords: Number(event.target.value) })}>
+            {MOST_WORDS.map((count) => (
+              <option key={count} value={count}>
+                {count === 1 ? '1 word' : `${count} words`}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** The rules a scramble follows, and what counts as a letter. */
+function ScrambleOptions({ settings, onSettings }: PartProps) {
+  return (
+    <>
+      <fieldset>
+        <legend className="label">Letters</legend>
+        <div className="checks">
+          <Check checked={settings.keepFirst} onChange={(keepFirst) => onSettings({ keepFirst })}>
+            Keep each word’s first letter
+          </Check>
+          <Check checked={settings.keepLast} onChange={(keepLast) => onSettings({ keepLast })}>
+            Keep each word’s last letter
+          </Check>
+          <Check checked={settings.moveEvery} onChange={(moveEvery) => onSettings({ moveEvery })}>
+            Move every letter
+          </Check>
+          <Check
+            checked={settings.partNeighbours}
+            onChange={(partNeighbours) => onSettings({ partNeighbours })}
+            hint="Letters side by side in a word don’t end up side by side again."
+          >
+            Part old neighbours
+          </Check>
+        </div>
+      </fieldset>
 
       <Choice
-        legend="Case"
-        value={settings.letterCase}
-        options={CASES}
-        onChange={(letterCase) => onSettings({ letterCase })}
+        legend="Punctuation"
+        value={settings.punctuation}
+        options={[
+          { value: 'drop', label: 'Leave out' },
+          { value: 'keep', label: 'Keep in place' },
+        ]}
+        onChange={(punctuation) => onSettings({ punctuation })}
       />
 
       <Choice
-        legend="Show"
-        value={settings.spacing}
-        options={SPACINGS}
-        onChange={(spacing) => onSettings({ spacing })}
+        legend="Digits"
+        value={settings.digits}
+        options={[
+          { value: 'scramble', label: 'Scramble' },
+          { value: 'drop', label: 'Leave out' },
+        ]}
+        onChange={(digits) => onSettings({ digits })}
       />
 
-      <details className="more">
-        <summary>More options</summary>
-        <div className="more-options">
-          <fieldset>
-            <legend className="label">Letters</legend>
-            <div className="checks">
-              <Check checked={settings.keepFirst} onChange={(keepFirst) => onSettings({ keepFirst })}>
-                Keep each word’s first letter
-              </Check>
-              <Check checked={settings.keepLast} onChange={(keepLast) => onSettings({ keepLast })}>
-                Keep each word’s last letter
-              </Check>
-              <Check checked={settings.moveEvery} onChange={(moveEvery) => onSettings({ moveEvery })}>
-                Move every letter
-              </Check>
-              <Check
-                checked={settings.partNeighbours}
-                onChange={(partNeighbours) => onSettings({ partNeighbours })}
-                hint="Letters side by side in a word don’t end up side by side again."
-              >
-                Part old neighbours
-              </Check>
-            </div>
-          </fieldset>
+      <Choice
+        legend="Accents"
+        value={settings.accents}
+        options={[
+          { value: 'keep', label: 'Keep' },
+          { value: 'fold', label: 'Take off' },
+        ]}
+        onChange={(accents) => onSettings({ accents })}
+        hint={settings.accents === 'fold' ? 'É becomes E, and Æ becomes AE.' : undefined}
+      />
+    </>
+  );
+}
 
-          <Choice
-            legend="Punctuation"
-            value={settings.punctuation}
-            options={[
-              { value: 'drop', label: 'Leave out' },
-              { value: 'keep', label: 'Keep in place' },
-            ]}
-            onChange={(punctuation) => onSettings({ punctuation })}
-          />
-
-          <Choice
-            legend="Digits"
-            value={settings.digits}
-            options={[
-              { value: 'scramble', label: 'Scramble' },
-              { value: 'drop', label: 'Leave out' },
-            ]}
-            onChange={(digits) => onSettings({ digits })}
-          />
-
-          <Choice
-            legend="Accents"
-            value={settings.accents}
-            options={[
-              { value: 'keep', label: 'Keep' },
-              { value: 'fold', label: 'Take off' },
-            ]}
-            onChange={(accents) => onSettings({ accents })}
-            hint={settings.accents === 'fold' ? 'É becomes E, and Æ becomes AE.' : undefined}
-          />
-
+/** What a phrase may and mustn't have, and the game master's own words. */
+function WordOptions({ settings, onSettings }: PartProps) {
+  const id = useId();
+  return (
+    <>
+      {settings.mode === 'words' && (
+        <>
           <div className="field">
-            <label className="label" htmlFor={`${id}-count`}>
-              How many
+            <label className="label" htmlFor={`${id}-shortest`}>
+              Shortest word
             </label>
-            <select id={`${id}-count`} value={settings.count} onChange={(event) => onSettings({ count: Number(event.target.value) })}>
-              {COUNTS.map((count) => (
-                <option key={count} value={count}>
-                  {count}
+            <select id={`${id}-shortest`} value={settings.minLength} onChange={(event) => onSettings({ minLength: Number(event.target.value) })}>
+              {SHORTEST_WORDS.map((length) => (
+                <option key={length} value={length}>
+                  {length === 1 ? '1 letter' : `${length} letters`}
                 </option>
               ))}
             </select>
           </div>
 
           <div className="field">
-            <label className="label" htmlFor={`${id}-order`}>
-              Order
+            <label className="label" htmlFor={`${id}-include`}>
+              Put in
             </label>
-            <select
-              id={`${id}-order`}
-              aria-describedby={`${id}-order-hint`}
-              value={settings.order}
-              onChange={(event) => onSettings({ order: event.target.value as Order })}
-            >
-              {ORDERS.map((order) => (
-                <option key={order} value={order}>
-                  {ORDER_LABELS[order].label}
-                </option>
-              ))}
-            </select>
-            <small className="hint" id={`${id}-order-hint`}>
-              {ORDER_LABELS[settings.order].hint}
+            <input
+              id={`${id}-include`}
+              type="text"
+              aria-describedby={`${id}-include-hint`}
+              autoComplete="off"
+              spellCheck={false}
+              value={settings.include}
+              onChange={(event) => onSettings({ include: event.target.value })}
+            />
+            <small className="hint" id={`${id}-include-hint`}>
+              Words every phrase must have.
             </small>
           </div>
-        </div>
-      </details>
 
-      <div className="reroll-row">
-        <button type="button" className="reroll" onClick={onReroll}>
-          <span aria-hidden="true">🎲</span> Reroll
-        </button>
-        <span className="seed" title="The same seed, text and settings always give the same arrangements">
-          Seed {seed}
-        </span>
+          <div className="field">
+            <label className="label" htmlFor={`${id}-exclude`}>
+              Leave out
+            </label>
+            <input
+              id={`${id}-exclude`}
+              type="text"
+              aria-describedby={`${id}-exclude-hint`}
+              autoComplete="off"
+              spellCheck={false}
+              value={settings.exclude}
+              onChange={(event) => onSettings({ exclude: event.target.value })}
+            />
+            <small className="hint" id={`${id}-exclude-hint`}>
+              Words no phrase may have.
+            </small>
+          </div>
+
+          <div className="checks">
+            <Check
+              checked={settings.allowOwn}
+              onChange={(allowOwn) => onSettings({ allowOwn })}
+              hint="Otherwise they’re left out, and pieces of them put last."
+            >
+              Use the text’s own words
+            </Check>
+          </div>
+        </>
+      )}
+
+      <div className="field">
+        <label className="label" htmlFor={`${id}-yours`}>
+          Your words
+        </label>
+        <textarea
+          id={`${id}-yours`}
+          rows={3}
+          aria-describedby={`${id}-yours-hint`}
+          spellCheck={false}
+          placeholder="Strahd, Barovia"
+          value={settings.yourWords}
+          onChange={(event) => onSettings({ yourWords: event.target.value })}
+        />
+        <small className="hint" id={`${id}-yours-hint`}>
+          Names and places from your game, for phrases to use too. They’re kept in this browser.
+        </small>
       </div>
-    </div>
+    </>
   );
 }
 

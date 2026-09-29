@@ -4,7 +4,8 @@
  * encoded, as in Stele's links. The text is often a password, so the address bar never spells it
  * out, say during a screen share.
  */
-import { COUNTS, DEFAULT_SETTINGS, ORDERS, SHAPES, WORD_COUNTS, type Settings } from './settings';
+import { WORD_LISTS } from '../data/words';
+import { COUNTS, DEFAULT_SETTINGS, MODES, MOST_WORDS, ORDERS, SHAPES, SHORTEST_WORDS, WORD_COUNTS, type Settings } from './settings';
 
 /** Bumped when the shape of the state changes incompatibly. */
 const VERSION = 1;
@@ -68,6 +69,15 @@ export function sanitizeSettings(data: unknown): Partial<Settings> {
   if (!data || typeof data !== 'object') return {};
   const input = data as Record<string, unknown>;
   const settings: Partial<Settings> = {};
+  if (oneOf(input.mode, MODES)) settings.mode = input.mode;
+  if (oneOf(input.wordList, WORD_LISTS)) settings.wordList = input.wordList;
+  if (oneOf(input.maxWords, MOST_WORDS)) settings.maxWords = input.maxWords;
+  if (oneOf(input.minLength, SHORTEST_WORDS)) settings.minLength = input.minLength;
+  for (const words of ['include', 'exclude'] as const) {
+    if (typeof input[words] === 'string' && input[words].length <= 200) settings[words] = input[words];
+  }
+  if (typeof input.allowOwn === 'boolean') settings.allowOwn = input.allowOwn;
+  if (typeof input.yourWords === 'string' && input.yourWords.length <= 5000) settings.yourWords = input.yourWords;
   if (oneOf(input.shape, SHAPES)) settings.shape = input.shape;
   if (oneOf(input.wordCount, WORD_COUNTS)) settings.wordCount = input.wordCount;
   if (typeof input.pattern === 'string' && input.pattern.length <= 60) settings.pattern = input.pattern;

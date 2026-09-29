@@ -16,6 +16,7 @@ vi.mock('../engine/rng', async (importOriginal) => ({
 beforeEach(() => {
   nextSeed = 1;
   window.history.replaceState(null, '', '/');
+  localStorage.clear();
 });
 afterEach(cleanup);
 
@@ -165,6 +166,72 @@ describe('App', () => {
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('denied'));
     await user.click(screen.getByRole('button', { name: 'Copy' }));
     expect(screen.getByRole('status')).toHaveTextContent(/Couldn’t copy/);
+  });
+});
+
+describe('Real words', () => {
+  /** Types the text and asks for real words, waiting for them to be found. */
+  async function words(text: string) {
+    const started = await start(text);
+    await started.user.click(screen.getByRole('radio', { name: 'Real words' }));
+    await waitFor(() => expect(screen.queryByText('Looking for words…')).not.toBeInTheDocument(), { timeout: 10_000 });
+    return started;
+  }
+
+  it('finds phrases of real words, best first, and says where the words are from', async () => {
+    await words('dormitory');
+    await waitFor(() => expect(shown().slice(0, 5)).toContain('DIRTY ROOM'));
+    expect(screen.getByText(/^All \d+ phrases$/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'English Speller Database' })).toBeInTheDocument();
+  });
+
+  it('comes as close as it can when no phrase uses every letter', async () => {
+    await words('mellon');
+    await waitFor(() => expect(shown()).toContain('LEMON + L'));
+    expect(screen.getByRole('note')).toHaveTextContent('No phrase of real words uses every letter');
+  });
+
+  it('gives scrambles when there are no real words in the letters', async () => {
+    await words('xyzzy');
+    await waitFor(() => expect(screen.getByRole('note')).toHaveTextContent('No real words are in these letters, so here are scrambles.'));
+    for (const arrangement of shown()) expect(sorted(arrangement)).toBe(sorted('XYZZY'));
+  });
+
+  it('puts words in, and keeps them out', async () => {
+    const { user } = await words('dormitory');
+    await moreOptions(user);
+    await user.type(screen.getByRole('textbox', { name: 'Put in' }), 'room');
+    await waitFor(() => expect(shown()).toContain('DIRTY ROOM'));
+    for (const phrase of shown()) expect(phrase.split(' ')).toContain('ROOM');
+    await user.clear(screen.getByRole('textbox', { name: 'Put in' }));
+    await user.type(screen.getByRole('textbox', { name: 'Leave out' }), 'dirty');
+    await waitFor(() => expect(shown()).not.toContain('DIRTY ROOM'));
+    for (const phrase of shown()) expect(phrase.split(' ')).not.toContain('DIRTY');
+  });
+
+  it('says when a word to put in isn’t in the letters', async () => {
+    const { user } = await words('dormitory');
+    await moreOptions(user);
+    await user.type(screen.getByRole('textbox', { name: 'Put in' }), 'lord');
+    expect(await screen.findByText('LORD isn’t in the letters, so it can’t be put in.')).toBeInTheDocument();
+  });
+
+  it('uses your own words, and keeps them in the browser', async () => {
+    const { user } = await words('hard st');
+    await moreOptions(user);
+    await user.type(screen.getByRole('textbox', { name: 'Your words' }), 'Strahd');
+    await waitFor(() => expect(shown()[0]).toBe('STRAHD'));
+    expect(localStorage.getItem('sator:your-words')).toBe('Strahd');
+    cleanup();
+    render(<App />);
+    await user.click(screen.getByRole('radio', { name: 'Real words' }));
+    await moreOptions(user);
+    expect(screen.getByRole('textbox', { name: 'Your words' })).toHaveValue('Strahd');
+  });
+
+  it('keeps the choice of real words in the link', async () => {
+    await words('dormitory');
+    await waitFor(async () => expect((await decodeState(window.location.hash))?.settings?.mode).toBe('words'));
   });
 });
 

@@ -1,69 +1,190 @@
-import { useEffect, useState } from 'react';
-import { asText, formatWords } from '../engine/format';
+import { useEffect, useState, type ReactNode } from 'react';
+import { asText, formatWords, type LetterCase } from '../engine/format';
 import type { Text } from '../engine/letters';
+import type { Phrase } from '../engine/solver';
+import { mulberry32, shuffled } from '../engine/rng';
 import type { Scramble, Shortfall } from '../engine/scramble';
 import { isStrict, parsePattern, type Settings, type Spacing } from './settings';
+import type { Phrases } from './usePhrases';
 
 interface OutputProps {
   /** Whether anything has been typed, to tell an empty box from one without letters in it. */
   typed: boolean;
   text: Text;
   scramble: Scramble;
+  phrases: Phrases;
   settings: Settings;
+  seed: number;
   /** A link that brings back this list. */
   shareLink: () => Promise<string>;
+}
+
+/** One line of the list: its words, as characters, and any letters left over. */
+interface Item {
+  words: string[][];
+  spare: string[];
 }
 
 /** A number of arrangements, briefly. */
 const many = (n: number) => (n > 1_000_000 ? 'over a million' : n.toLocaleString('en'));
 
-export function Output({ typed, text, scramble, settings, shareLink }: OutputProps) {
+export function Output(props: OutputProps) {
+  if (props.settings.mode === 'words') return <PhraseOutput {...props} />;
+  return <ScrambleOutput {...props} />;
+}
+
+function ScrambleOutput({ typed, text, scramble, settings, shareLink, note }: OutputProps & { note?: string }) {
   const { arrangements } = scramble;
-  if (arrangements.length === 0) {
+  if (arrangements.length === 0) return <Message>{emptyMessage(typed, text, scramble, settings)}</Message>;
+  const items = arrangements.map((arrangement) => ({ words: formatWords(arrangement.letters, arrangement.words, text.marks, settings.letterCase), spare: [] }));
+  const notes = [...(note ? [note] : []), ...scramble.shortfalls.map(shortfallMessage)];
+  return <List items={items} summary={summary(scramble, isStrict(settings))} notes={notes} spacing={settings.spacing} shareLink={shareLink} />;
+}
+
+function PhraseOutput(props: OutputProps) {
+  const { typed, phrases, settings, seed, shareLink } = props;
+  const { status, result, stale, retry } = phrases;
+  if (!typed) return <Message>Type a word or phrase to find real words in it.</Message>;
+  if (status === 'failed' && !stale) {
     return (
-      <article className="page">
-        <p className="message">{emptyMessage(typed, text, scramble, settings)}</p>
-      </article>
+      <Message>
+        Couldn’t load the word list. Check your connection, and try again.{' '}
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </Message>
     );
   }
-  const shown = arrangements.map((arrangement) => formatWords(arrangement.letters, arrangement.words, text.marks, settings.letterCase));
-  const spaced = settings.spacing !== 'together';
-  const copyText = shown.map((words) => asText(words, spaced)).join('\n');
-  // Columns at least as wide as the widest arrangement, as many as fit.
-  const widest = Math.max(...shown.map((words) => asText(words, spaced).length));
-  const columnWidth = `${Math.ceil(widest * (settings.spacing === 'tiles' ? 2.4 : 1.3)) + 3}ch`;
+  if (!result) return <Message>Looking for words…</Message>;
+  if (result.missing) return <Message>{`${result.missing} isn’t in the letters, so it can’t be put in.`}</Message>;
+  const close = result.phrases.length === 0;
+  const found = close ? result.nearMisses : result.phrases;
+  if (found.length === 0) return <ScrambleOutput {...props} note="No real words are in these letters, so here are scrambles." />;
+
+  // The best of them, then in the order asked for.
+  let shown = found.slice(0, settings.count);
+  if (settings.order === 'az') shown = [...shown].sort((a, b) => a.words.join(' ').localeCompare(b.words.join(' '), 'en'));
+  if (settings.order === 'shuffled') shown = shuffled(shown, mulberry32(seed));
+  const items = shown.map((phrase) => phraseItem(phrase, settings.letterCase));
+  const all = result.exhausted && found.length === shown.length;
+  const text = close
+    ? all
+      ? shown.length === 1
+        ? 'The closest phrase'
+        : `The ${shown.length} closest phrases`
+      : `The ${shown.length} closest of ${many(found.length)} phrases found`
+    : all
+      ? shown.length === 1
+        ? 'The only phrase'
+        : `All ${shown.length} phrases`
+      : `The best ${shown.length} of ${result.exhausted ? '' : 'the '}${many(found.length)} phrases${result.exhausted ? '' : ' found'}`;
+  const notes = close ? ['No phrase of real words uses every letter, so each of these leaves a few over, set apart at the end.'] : [];
+  return (
+    <List
+      items={items}
+      summary={text}
+      notes={notes}
+      spacing={settings.spacing}
+      shareLink={shareLink}
+      busy={stale}
+      credit={
+        <p className="source">
+          Words from the{' '}
+          <a href="https://github.com/en-wl/wordlist" target="_blank" rel="noopener">
+            English Speller Database
+          </a>
+          , by Kevin Atkinson.
+        </p>
+      }
+    />
+  );
+}
+
+function phraseItem(phrase: Phrase, letterCase: LetterCase): Item {
+  const letters = phrase.words.flatMap((word) => [...word]);
+  return {
+    words: formatWords(
+      letters,
+      phrase.words.map((word) => word.length),
+      [],
+      letterCase,
+    ),
+    spare: phrase.leftover.map((letter) => (letterCase === 'lower' ? letter.toLocaleLowerCase('en') : letter)),
+  };
+}
+
+/** An item as plain text: "LEMON + L" for one with a letter left over. */
+function itemText(item: Item, spaced: boolean): string {
+  const words = asText(item.words, spaced);
+  return item.spare.length > 0 ? `${words} + ${item.spare.join(spaced ? ' ' : '')}` : words;
+}
+
+function Message({ children }: { children: ReactNode }) {
+  return (
+    <article className="page">
+      <p className="message">{children}</p>
+    </article>
+  );
+}
+
+interface ListProps {
+  items: Item[];
+  summary: string;
+  notes: string[];
+  spacing: Spacing;
+  shareLink: () => Promise<string>;
+  /** Whether a newer list is on its way. */
+  busy?: boolean;
+  credit?: ReactNode;
+}
+
+function List({ items, summary: text, notes, spacing, shareLink, busy = false, credit }: ListProps) {
+  const spaced = spacing !== 'together';
+  const texts = items.map((item) => itemText(item, spaced));
+  // Columns at least as wide as the widest line, as many as fit.
+  const widest = Math.max(...texts.map((line) => line.length));
+  const columnWidth = `${Math.ceil(widest * (spacing === 'tiles' ? 2.4 : 1.3)) + 3}ch`;
   return (
     <section className="output" aria-label="Scrambled">
       <div className="output-bar">
-        <p className="count">{summary(scramble, isStrict(settings))}</p>
-        <Actions copyText={copyText} shareLink={shareLink} />
+        <p className="count">{text}</p>
+        <Actions copyText={texts.join('\n')} shareLink={shareLink} />
       </div>
-      {scramble.shortfalls.length > 0 && (
+      {notes.length > 0 && (
         <div className="notice" role="note">
-          {scramble.shortfalls.map((shortfall, i) => (
-            <p key={i}>{shortfallMessage(shortfall)}</p>
+          {notes.map((note, i) => (
+            <p key={i}>{note}</p>
           ))}
         </div>
       )}
-      <article className="page">
+      <article className="page" aria-busy={busy}>
         {/* The list is numbered with a counter; the role keeps it a list for Safari's screen reader. */}
         <ol className="arrangements" role="list" aria-label="Arrangements" style={{ columnWidth }}>
-          {shown.map((words, i) => (
+          {items.map((item, i) => (
             <li key={i}>
-              <Arrangement words={words} spacing={settings.spacing} />
+              <Shown item={item} spacing={spacing} />
             </li>
           ))}
         </ol>
       </article>
+      {credit}
     </section>
   );
 }
 
-function Arrangement({ words, spacing }: { words: string[][]; spacing: Spacing }) {
-  if (spacing !== 'tiles') return <span className={spacing === 'spaced' ? 'spaced' : undefined}>{asText(words, spacing === 'spaced')}</span>;
+function Shown({ item, spacing }: { item: Item; spacing: Spacing }) {
+  if (spacing !== 'tiles') {
+    const words = asText(item.words, spacing === 'spaced');
+    return (
+      <span className={spacing === 'spaced' ? 'spaced' : undefined}>
+        {words}
+        {item.spare.length > 0 && <span className="spare">{` + ${item.spare.join(spacing === 'spaced' ? ' ' : '')}`}</span>}
+      </span>
+    );
+  }
   return (
     <span className="tiles">
-      {words.map((word, w) => (
+      {item.words.map((word, w) => (
         <span className="tile-word" key={w}>
           {word.map((character, c) => (
             <span className="tile" key={c}>
@@ -72,6 +193,15 @@ function Arrangement({ words, spacing }: { words: string[][]; spacing: Spacing }
           ))}
         </span>
       ))}
+      {item.spare.length > 0 && (
+        <span className="tile-word spare" aria-label={`and ${item.spare.join(' ')} left over`}>
+          {item.spare.map((character, c) => (
+            <span className="tile" key={c}>
+              {character}
+            </span>
+          ))}
+        </span>
+      )}
     </span>
   );
 }
@@ -141,7 +271,7 @@ function Actions({ copyText, shareLink }: { copyText: string; shareLink: () => P
       <span role="status" className="status">
         {status ?? ''}
       </span>
-      <button type="button" onClick={() => copy(copyText, 'Copied', 'Select the arrangements and copy them instead.')}>
+      <button type="button" onClick={() => copy(copyText, 'Copied', 'Select the list and copy it instead.')}>
         Copy
       </button>
       <button type="button" onClick={() => copy(shareLink(), 'Link copied', 'Copy the address from the address bar instead.')}>

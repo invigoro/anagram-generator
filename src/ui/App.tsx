@@ -5,6 +5,7 @@ import { scramble } from '../engine/scramble';
 import { Controls } from './Controls';
 import { Output } from './Output';
 import { DEFAULT_SETTINGS, rulesOf, type Settings } from './settings';
+import { searchFor, usePhrases } from './usePhrases';
 import { decodeState, encodeState, linkFor, type PageState } from './urlState';
 
 interface AppProps {
@@ -12,10 +13,34 @@ interface AppProps {
   initial?: Partial<PageState> | null;
 }
 
+/** Where the game master's own words are kept between visits. */
+const YOUR_WORDS = 'sator:your-words';
+
+function savedWords(): string {
+  try {
+    return localStorage.getItem(YOUR_WORDS) ?? '';
+  } catch {
+    // Storage can be blocked (private windows); the words are only a convenience.
+    return '';
+  }
+}
+
 export default function App({ initial }: AppProps) {
   const [text, setText] = useState(initial?.text ?? '');
-  const [settings, setSettings] = useState<Settings>(initial?.settings ?? DEFAULT_SETTINGS);
+  // A link's own words come with it; otherwise they're the ones kept from last time.
+  const [settings, setSettings] = useState<Settings>(() => {
+    const settings = initial?.settings ?? DEFAULT_SETTINGS;
+    return settings.yourWords ? settings : { ...settings, yourWords: savedWords() };
+  });
   const [seed, setSeed] = useState(() => initial?.seed ?? randomSeed());
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(YOUR_WORDS, settings.yourWords);
+    } catch {
+      // As above.
+    }
+  }, [settings.yourWords]);
 
   // The URL always describes the page, so it can be bookmarked or shared.
   useEffect(() => {
@@ -35,7 +60,8 @@ export default function App({ initial }: AppProps) {
       const state = await decodeState(window.location.hash);
       if (!state) return;
       setText(state.text ?? '');
-      setSettings(state.settings ?? DEFAULT_SETTINGS);
+      const linked = state.settings ?? DEFAULT_SETTINGS;
+      setSettings(linked.yourWords ? linked : { ...linked, yourWords: savedWords() });
       if (state.seed !== undefined) setSeed(state.seed);
     };
     window.addEventListener('hashchange', apply);
@@ -49,6 +75,8 @@ export default function App({ initial }: AppProps) {
   const read = useMemo(() => readText(shownText, { punctuation, digits, accents }), [shownText, punctuation, digits, accents]);
   const rules = useMemo(() => rulesOf(shownSettings), [shownSettings]);
   const result = useMemo(() => scramble(read, rules, { count, order }, mulberry32(seed)), [read, rules, count, order, seed]);
+  const search = useMemo(() => (shownSettings.mode === 'words' ? searchFor(shownText, shownSettings) : null), [shownText, shownSettings]);
+  const phrases = usePhrases(search);
 
   return (
     <div className="app">
@@ -76,7 +104,9 @@ export default function App({ initial }: AppProps) {
           typed={shownText.trim() !== ''}
           text={read}
           scramble={result}
+          phrases={phrases}
           settings={shownSettings}
+          seed={seed}
           shareLink={() => linkFor({ text, seed, settings })}
         />
       </main>

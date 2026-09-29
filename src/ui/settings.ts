@@ -1,3 +1,4 @@
+import type { WordList } from '../data/words';
 import type { LetterCase } from '../engine/format';
 import { DEFAULT_LETTER_OPTIONS, type LetterOptions } from '../engine/letters';
 import type { Order, Rules, Shape } from '../engine/scramble';
@@ -5,8 +6,24 @@ import type { Order, Rules, Shape } from '../engine/scramble';
 /** How the arrangements are shown: letters together, spaced out, or on tiles. */
 export type Spacing = 'together' | 'spaced' | 'tiles';
 
+/** What the page makes: scrambles, phrases of real words, or an anagram written by hand. */
+export type Mode = 'scramble' | 'words' | 'hand';
+export const MODES: readonly Mode[] = ['scramble', 'words', 'hand'];
+
 /** Everything the page lets you choose, besides the text and the seed. */
 export interface Settings extends LetterOptions {
+  mode: Mode;
+  /** For real words: which list, how many words at most, and how short a word may be. */
+  wordList: WordList;
+  maxWords: number;
+  minLength: number;
+  /** Words every phrase must have, and words none may, as typed. */
+  include: string;
+  exclude: string;
+  /** Whether a phrase may use the text's own words, and pieces of them. */
+  allowOwn: boolean;
+  /** The game master's own words, such as the campaign's names, as typed. */
+  yourWords: string;
   shape: Shape;
   /** For the 'count' shape. */
   wordCount: number;
@@ -38,9 +55,19 @@ export const SHAPES: readonly Shape[] = ['words', 'lengths', 'run', 'count', 'pa
 export const WORD_COUNTS: readonly number[] = [2, 3, 4, 5, 6, 7, 8];
 export const COUNTS: readonly number[] = [10, 25, 50, 100];
 export const ORDERS: readonly Order[] = ['best', 'az', 'shuffled'];
+export const MOST_WORDS: readonly number[] = [1, 2, 3, 4, 5];
+export const SHORTEST_WORDS: readonly number[] = [1, 2, 3, 4, 5];
 
 export const DEFAULT_SETTINGS: Settings = {
   ...DEFAULT_LETTER_OPTIONS,
+  mode: 'scramble',
+  wordList: 'common',
+  maxWords: 3,
+  minLength: 2,
+  include: '',
+  exclude: '',
+  allowOwn: false,
+  yourWords: '',
   ...DIFFICULTY_RULES.medium,
   wordCount: 3,
   pattern: '',

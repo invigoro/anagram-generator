@@ -6,6 +6,7 @@
  */
 import { WORD_LISTS } from '../data/words';
 import { NEW_PUZZLE, type Puzzle } from '../engine/puzzle';
+import { isLettering, isSteleMedium } from '../engine/stele';
 import { pack, unpack } from './packing';
 import { COUNTS, DEFAULT_SETTINGS, MODES, MOST_WORDS, ORDERS, SAYABILITIES, SHAPES, SHORTEST_WORDS, WORD_COUNTS, type Settings } from './settings';
 
@@ -89,6 +90,15 @@ export function sanitizePuzzle(data: unknown): Puzzle | null {
       typeof input.playerHints === 'number' && Number.isInteger(input.playerHints) && input.playerHints >= 0 && input.playerHints <= 100
         ? input.playerHints
         : NEW_PUZZLE.playerHints,
+    stele: sanitizeStele(input.stele),
+  };
+}
+
+function sanitizeStele(data: unknown): Puzzle['stele'] {
+  const input = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
+  return {
+    medium: isSteleMedium(input.medium) ? input.medium : NEW_PUZZLE.stele.medium,
+    lettering: isLettering(input.lettering) ? input.lettering : NEW_PUZZLE.stele.lettering,
   };
 }
 

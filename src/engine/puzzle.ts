@@ -6,6 +6,7 @@ import { inPlace, longestPiece, neighbourPairs, neighboursKept, piecesOf } from 
 import { lettersLeft } from './hand';
 import type { Text } from './letters';
 import type { Phrase } from './solver';
+import { DEFAULT_STELE, type SteleOptions } from './stele';
 
 export interface Puzzle {
   /** The clue, as it's shown: "NEPO EMASES". */
@@ -18,9 +19,11 @@ export interface Puzzle {
   success: string;
   /** How many of the hints a player link lets players take. */
   playerHints: number;
+  /** What Stele puts the clue on, and in what letters. */
+  stele: SteleOptions;
 }
 
-export const NEW_PUZZLE: Omit<Puzzle, 'clue'> = { accepted: [], riddle: '', success: 'The way opens.', playerHints: 2 };
+export const NEW_PUZZLE: Omit<Puzzle, 'clue'> = { accepted: [], riddle: '', success: 'The way opens.', playerHints: 2, stele: DEFAULT_STELE };
 
 /** Whether a clue uses exactly the answer's letters. */
 export function fits(answer: Text, clue: Text): boolean {

@@ -188,7 +188,8 @@ a.button:hover {
   background: var(--hover);
 }
 
-button:disabled {
+button:disabled,
+a.button[aria-disabled='true'] {
   opacity: 0.5;
   cursor: default;
   pointer-events: none;
@@ -613,6 +614,27 @@ button.quiet:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+/* The clue on an object in Stele */
+.in-stele h3 {
+  margin: 0 0 0.35rem;
+}
+
+.stele-choices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.in-stele .hint {
+  margin: 0;
+}
+
+.in-stele .notice {
+  margin: 0;
 }
 
 /* A letter a hint doesn't give yet */

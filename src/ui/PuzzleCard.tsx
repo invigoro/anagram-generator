@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { hintLadder, hintText } from '../engine/hints';
 import { fits, otherAnswers, readout, type Puzzle, type Readout } from '../engine/puzzle';
+import { isLettering, isRunes, isSteleMedium, LETTERINGS, letterChanges, RUNE_SCRIPTS, runesThatKeep, STELE_MEDIA, type SteleMedium } from '../engine/stele';
 import type { Settings } from './settings';
 import { playerLinkFor, playerPuzzleOf } from './playerLink';
 import { PrintSheet, type Printout } from './PrintSheet';
 import { ShowPlayers } from './ShowPlayers';
 import { clueItem, Shown } from './Shown';
+import { steleLink } from './steleLink';
 import { readForWords, type Phrases } from './usePhrases';
 
 interface PuzzleCardProps {
@@ -169,6 +171,7 @@ export function PuzzleCard({ puzzle, answer, hidden, others, settings, onChange,
               {status}
             </span>
           </div>
+          <InStele puzzle={puzzle} onChange={onChange} />
           {showing && <ShowPlayers puzzle={puzzle} answer={answer} onClose={() => setShowing(false)} />}
           {printing && <PrintSheet key={printing.request} kind={printing.kind} clue={puzzle.clue} riddle={puzzle.riddle} onDone={printed} />}
         </>
@@ -205,6 +208,91 @@ export function PuzzleCard({ puzzle, answer, hidden, others, settings, onChange,
         </div>
       )}
     </section>
+  );
+}
+
+/** Where Stele puts the clue, what its lettering would do to the clue's letters, and the link to it. */
+function InStele({ puzzle, onChange }: { puzzle: Puzzle; onChange: (puzzle: Puzzle) => void }) {
+  const id = useId();
+  const { clue, riddle, stele } = puzzle;
+  const [link, setLink] = useState<string | null>(null);
+  useEffect(() => {
+    let current = true;
+    steleLink(clue, riddle, stele).then(
+      (made) => current && setLink(made),
+      () => current && setLink(null),
+    );
+    return () => {
+      current = false;
+    };
+  }, [clue, riddle, stele]);
+
+  const changes = letterChanges(clue, stele.lettering);
+  const keeping = changes.length > 0 && isRunes(stele.lettering) ? runesThatKeep(clue) : [];
+  const names = keeping.map((script) => LETTERINGS[script]);
+  return (
+    <div className="in-stele" role="group" aria-labelledby={`${id}-title`}>
+      <h3 className="label" id={`${id}-title`}>
+        In Stele
+      </h3>
+      <div className="stele-choices">
+        <div className="field">
+          <label className="label" htmlFor={`${id}-medium`}>
+            Material
+          </label>
+          <select
+            id={`${id}-medium`}
+            value={stele.medium}
+            onChange={(event) => isSteleMedium(event.target.value) && onChange({ ...puzzle, stele: { ...stele, medium: event.target.value } })}
+          >
+            {(Object.entries(STELE_MEDIA) as [SteleMedium, string][]).map(([medium, name]) => (
+              <option key={medium} value={medium}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label className="label" htmlFor={`${id}-lettering`}>
+            Letters
+          </label>
+          <select
+            id={`${id}-lettering`}
+            value={stele.lettering}
+            onChange={(event) => isLettering(event.target.value) && onChange({ ...puzzle, stele: { ...stele, lettering: event.target.value } })}
+          >
+            <option value="latin">{LETTERINGS.latin}</option>
+            <option value="roman">{LETTERINGS.roman}</option>
+            <optgroup label="Runes">
+              {RUNE_SCRIPTS.map((script) => (
+                <option key={script} value={script}>
+                  {LETTERINGS[script]}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+        </div>
+        <a className="button" href={link ?? undefined} aria-disabled={!link} target="_blank" rel="noopener">
+          Open in Stele
+        </a>
+      </div>
+      {changes.length > 0 ? (
+        <div className="notice" role="note">
+          {changes.map((change) => (
+            <p key={change}>{change}</p>
+          ))}
+          {isRunes(stele.lettering) && (
+            <p>
+              {names.length === 0
+                ? 'No runes keep every letter of this clue.'
+                : `${names.join(' and ')} ${names.length === 1 ? 'keeps' : 'keep'} every letter of this clue.`}
+            </p>
+          )}
+        </div>
+      ) : (
+        <p className="hint">Stele keeps its damage off the writing, and fades it only a little, so every letter can be read.</p>
+      )}
+    </div>
   );
 }
 

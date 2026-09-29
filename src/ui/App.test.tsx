@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
+import { unpack } from './packing';
 import { isRight, readPlayerLink } from './playerLink';
 import { DEFAULT_SETTINGS } from './settings';
 import { decodeState, encodeState } from './urlState';
@@ -400,6 +401,28 @@ describe('Puzzles', () => {
     window.dispatchEvent(new Event('afterprint'));
     await waitFor(() => expect(document.querySelector('.print-sheet')).toBeNull());
     print.mockRestore();
+  });
+
+  it('opens the clue in Stele, kept clear of damage, and warns of letters its runes would change', async () => {
+    const { user } = await start('Open sesame');
+    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    const steleSettings = async () => {
+      const href = within(card()).getByRole('link', { name: 'Open in Stele' }).getAttribute('href') ?? '';
+      return (await unpack(href.slice('https://stele.invigoro.me/#s='.length))) as { medium: string; blocks: Record<string, unknown>[] };
+    };
+    await within(card()).findByRole('link', { name: 'Open in Stele' });
+    const clue = (await decodeState(window.location.hash))?.puzzle?.clue;
+    expect(await steleSettings()).toMatchObject({ medium: 'granite', blocks: [{ text: `{{${clue}}}` }] });
+    expect(within(card()).queryByRole('note')).not.toBeInTheDocument();
+
+    await user.selectOptions(within(card()).getByRole('combobox', { name: 'Material' }), 'bronze');
+    await user.selectOptions(within(card()).getByRole('combobox', { name: 'Letters' }), 'younger-futhark');
+    // Younger Futhark has one rune for B and P, and one for E and I.
+    expect(within(card()).getByRole('note')).toHaveTextContent('These share a rune, so the players can’t tell them apart: B and P; E, I, J and Y;');
+    await waitFor(async () => expect(await steleSettings()).toMatchObject({ medium: 'bronze', blocks: [{ script: 'younger-futhark' }] }));
+    await waitFor(async () =>
+      expect((await decodeState(window.location.hash))?.puzzle?.stele).toEqual({ medium: 'bronze', lettering: 'younger-futhark' }),
+    );
   });
 
   it('makes an anagram written by hand the clue', async () => {

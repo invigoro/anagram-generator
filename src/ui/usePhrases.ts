@@ -65,11 +65,36 @@ export function handSearchFor(typed: string, settings: Settings): PhraseSearch |
   };
 }
 
+/**
+ * The search for other answers to a puzzle: every phrase of the answer's letters, the answer's own
+ * words allowed, since PEON SESAME is as good an answer to OPEN SESAME's clue as any.
+ */
+export function othersSearchFor(answer: string, settings: Settings): PhraseSearch | null {
+  const text = readForWords(answer);
+  if (text.letters.length === 0) return null;
+  return {
+    list: settings.wordList,
+    yourWords: wordsIn(settings.yourWords),
+    request: {
+      letters: text.letters,
+      textWords: wordsOf(text),
+      maxWords: Math.min(4, Math.max(3, text.words.length + 1)),
+      minLength: text.words.some((length) => length === 1) ? 1 : 2,
+      include: [],
+      exclude: [],
+      allowOwn: true,
+      limit: 300,
+      budget: BUDGET,
+    },
+  };
+}
+
 /** The one worker, made when first needed; null where there are no workers. */
 let worker: Worker | null | undefined;
 const waiting = new Map<number, (reply: SearchReply) => void>();
 let nextId = 1;
-let latest = 0;
+/** The latest search on each channel: a new one overtakes only those on its own. */
+const latest = new Map<string, number>();
 
 function theWorker(): Worker | null {
   if (worker === undefined) {
@@ -79,17 +104,18 @@ function theWorker(): Worker | null {
   return worker;
 }
 
-/** Starts a search, overtaking any before it; `done` hears how it went, unless it's overtaken too. */
-function startSearch(search: PhraseSearch, done: (reply: SearchReply) => void): () => void {
+/** Starts a search, overtaking any before it on its channel; `done` hears how it went, unless it's overtaken too. */
+function startSearch(search: PhraseSearch, channel: string, done: (reply: SearchReply) => void): () => void {
   const id = nextId++;
-  latest = id;
-  // An overtaken search never answers, so only the latest is waited for.
-  waiting.clear();
+  // An overtaken search never answers, so only the latest on a channel is waited for.
+  const overtaken = latest.get(channel);
+  if (overtaken !== undefined) waiting.delete(overtaken);
+  latest.set(channel, id);
   waiting.set(id, done);
   const running = theWorker();
-  if (running) running.postMessage({ id, search });
+  if (running) running.postMessage({ id, channel, search });
   else {
-    runSearch(search, () => latest !== id).then(
+    runSearch(search, () => latest.get(channel) !== id).then(
       (result) => result && waiting.get(id)?.({ id, result }),
       () => waiting.get(id)?.({ id, failed: true }),
     );
@@ -107,18 +133,21 @@ export interface Phrases {
   retry: () => void;
 }
 
-/** The phrases for a search, found in the worker: a new search starts whenever it changes. */
-export function usePhrases(search: PhraseSearch | null): Phrases {
+/**
+ * The phrases for a search, found in the worker: a new search starts whenever it changes. Searches
+ * on different channels run side by side; a new one overtakes only the one before it on its own.
+ */
+export function usePhrases(search: PhraseSearch | null, channel = 'main'): Phrases {
   const key = search ? JSON.stringify(search) : '';
   const [answer, setAnswer] = useState<{ key: string; result: PhraseResult | null; failed: boolean }>({ key: '', result: null, failed: false });
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!key) return;
-    return startSearch(JSON.parse(key) as PhraseSearch, (reply) =>
+    return startSearch(JSON.parse(key) as PhraseSearch, channel, (reply) =>
       setAnswer((previous) => ('failed' in reply ? { key, result: previous.result, failed: true } : { key, result: reply.result, failed: false })),
     );
-  }, [key, attempt]);
+  }, [key, attempt, channel]);
 
   const current = key !== '' && answer.key === key;
   return {

@@ -22,10 +22,10 @@ afterEach(cleanup);
 
 const textBox = () => screen.getByRole('textbox', { name: 'Word or phrase' });
 
-/** The arrangements on the page, in order. */
+/** The arrangements on the page, in order, without the button beside each. */
 function shown(): string[] {
   const list = screen.queryByRole('list', { name: 'Arrangements' });
-  return list ? within(list).getAllByRole('listitem').map((item) => item.textContent ?? '') : [];
+  return list ? within(list).getAllByRole('listitem').map((item) => item.firstElementChild?.textContent ?? '') : [];
 }
 
 const sorted = (text: string) => [...text].sort().join('');
@@ -281,6 +281,55 @@ describe('By hand', () => {
     const { user, anagram } = await byHand('dormitory');
     await user.type(anagram, 'dirtyy');
     expect(screen.getByText('Too many: Y. The text doesn’t have that letter to spare.')).toBeInTheDocument();
+  });
+});
+
+describe('Puzzles', () => {
+  const card = () => screen.getByRole('region', { name: 'Puzzle' });
+
+  it('makes a line of the list the clue, and says how much it gives away', async () => {
+    const { user } = await start('Open sesame');
+    const [first] = shown();
+    await user.click(screen.getByRole('button', { name: `Use ${first} as the clue` }));
+    expect(within(card()).getByText('Open sesame')).toBeInTheDocument();
+    expect(within(card()).getByText(/letters? (is|are) where|No letter is where it was/)).toBeInTheDocument();
+    expect([...card().querySelectorAll('.clue .tile')].map((tile) => tile.textContent).join('')).toBe(first.replace(' ', ''));
+    await user.click(within(card()).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('region', { name: 'Puzzle' })).not.toBeInTheDocument();
+  });
+
+  it('lists the other answers players might find, to accept or not, and keeps them in the link', async () => {
+    const { user } = await start('Open sesame');
+    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    const other = await within(card()).findByRole('checkbox', { name: 'ENEMA POSES' });
+    await user.click(other);
+    expect(other).toBeChecked();
+    await waitFor(async () => expect((await decodeState(window.location.hash))?.puzzle?.accepted).toEqual(['ENEMA POSES']));
+  });
+
+  it('hides the answer from anyone looking at the screen', async () => {
+    const { user } = await start('Open sesame');
+    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.click(screen.getByRole('button', { name: 'Hide it' }));
+    expect(textBox()).toHaveClass('masked');
+    expect(within(card()).queryByText('Open sesame')).not.toBeInTheDocument();
+    expect(within(card()).getByText('Hidden')).toBeInTheDocument();
+    expect(localStorage.getItem('sator:hide-answer')).toBe('yes');
+  });
+
+  it('says when the clue no longer fits the answer', async () => {
+    const { user } = await start('Open sesame');
+    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.type(textBox(), 's');
+    expect(within(card()).getByText('The clue doesn’t use the answer’s letters any more. Choose another from the list.')).toBeInTheDocument();
+  });
+
+  it('makes an anagram written by hand the clue', async () => {
+    const { user } = await start('dormitory');
+    await user.click(screen.getByRole('radio', { name: 'By hand' }));
+    await user.type(screen.getByRole('textbox', { name: 'Your anagram' }), 'dirty room');
+    await user.click(screen.getByRole('button', { name: 'Use as clue' }));
+    expect([...card().querySelectorAll('.clue .tile')].map((tile) => tile.textContent).join('')).toBe('DIRTYROOM');
   });
 });
 

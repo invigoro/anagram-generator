@@ -1,11 +1,12 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
-import { asText, formatWords, type LetterCase } from '../engine/format';
+import { formatWords, type LetterCase } from '../engine/format';
 import { lettersLeft } from '../engine/hand';
 import type { Text } from '../engine/letters';
 import type { Phrase } from '../engine/solver';
 import { mulberry32, shuffled } from '../engine/rng';
 import type { Scramble, Shortfall } from '../engine/scramble';
 import { isStrict, parsePattern, type Settings, type Spacing } from './settings';
+import { clueText, itemText, Shown, type Item } from './Shown';
 import { readForWords, type Phrases } from './usePhrases';
 
 interface OutputProps {
@@ -23,12 +24,8 @@ interface OutputProps {
   onHand: (hand: string) => void;
   /** A link that brings back this list. */
   shareLink: () => Promise<string>;
-}
-
-/** One line of the list: its words, as characters, and any letters left over. */
-interface Item {
-  words: string[][];
-  spare: string[];
+  /** Makes a line of the list the clue for a puzzle. */
+  onUse: (clue: string) => void;
 }
 
 /** A number of arrangements, briefly. */
@@ -41,7 +38,7 @@ export function Output(props: OutputProps) {
 }
 
 /** An anagram written by hand: the letters it has left to use, words that fit them, and ways to finish. */
-function HandOutput({ typedText, hand, settings, phrases, onHand, shareLink }: OutputProps) {
+function HandOutput({ typedText, hand, settings, phrases, onHand, shareLink, onUse }: OutputProps) {
   const id = useId();
   const answer = readForWords(typedText);
   if (answer.letters.length === 0) return <Message>Type a word or phrase, then write an anagram of it here.</Message>;
@@ -92,7 +89,13 @@ function HandOutput({ typedText, hand, settings, phrases, onHand, shareLink }: O
         <div className="preview">
           <div className="output-bar">
             <p className="count">{done ? 'Your anagram' : 'So far'}</p>
-            <Actions copyText={itemText(preview, settings.spacing !== 'together')} shareLink={shareLink} />
+            <Actions copyText={itemText(preview, settings.spacing !== 'together')} shareLink={shareLink}>
+              {done && (
+                <button type="button" onClick={() => onUse(clueText(preview))}>
+                  Use as clue
+                </button>
+              )}
+            </Actions>
           </div>
           <article className="page">
             <Shown item={preview} spacing={settings.spacing} />
@@ -146,16 +149,16 @@ function Suggestions({ title, items, onPick }: { title: string; items: readonly 
   );
 }
 
-function ScrambleOutput({ typed, text, scramble, settings, shareLink, note }: OutputProps & { note?: string }) {
+function ScrambleOutput({ typed, text, scramble, settings, shareLink, onUse, note }: OutputProps & { note?: string }) {
   const { arrangements } = scramble;
   if (arrangements.length === 0) return <Message>{emptyMessage(typed, text, scramble, settings)}</Message>;
   const items = arrangements.map((arrangement) => ({ words: formatWords(arrangement.letters, arrangement.words, text.marks, settings.letterCase), spare: [] }));
   const notes = [...(note ? [note] : []), ...scramble.shortfalls.map(shortfallMessage)];
-  return <List items={items} summary={summary(scramble, isStrict(settings))} notes={notes} spacing={settings.spacing} shareLink={shareLink} />;
+  return <List items={items} summary={summary(scramble, isStrict(settings))} notes={notes} spacing={settings.spacing} shareLink={shareLink} onUse={onUse} />;
 }
 
 function PhraseOutput(props: OutputProps) {
-  const { typed, phrases, settings, seed, shareLink } = props;
+  const { typed, phrases, settings, seed, shareLink, onUse } = props;
   const { status, result, stale, retry } = phrases;
   if (!typed) return <Message>Type a word or phrase to find real words in it.</Message>;
   if (status === 'failed' && !stale) {
@@ -199,6 +202,7 @@ function PhraseOutput(props: OutputProps) {
       notes={notes}
       spacing={settings.spacing}
       shareLink={shareLink}
+      onUse={onUse}
       busy={stale}
       credit={
         <p className="source">
@@ -226,12 +230,6 @@ function phraseItem(phrase: Phrase, letterCase: LetterCase): Item {
   };
 }
 
-/** An item as plain text: "LEMON + L" for one with a letter left over. */
-function itemText(item: Item, spaced: boolean): string {
-  const words = asText(item.words, spaced);
-  return item.spare.length > 0 ? `${words} + ${item.spare.join(spaced ? ' ' : '')}` : words;
-}
-
 function Message({ children }: { children: ReactNode }) {
   return (
     <article className="page">
@@ -246,12 +244,13 @@ interface ListProps {
   notes: string[];
   spacing: Spacing;
   shareLink: () => Promise<string>;
+  onUse: (clue: string) => void;
   /** Whether a newer list is on its way. */
   busy?: boolean;
   credit?: ReactNode;
 }
 
-function List({ items, summary: text, notes, spacing, shareLink, busy = false, credit }: ListProps) {
+function List({ items, summary: text, notes, spacing, shareLink, onUse, busy = false, credit }: ListProps) {
   const spaced = spacing !== 'together';
   const texts = items.map((item) => itemText(item, spaced));
   // Columns at least as wide as the widest line, as many as fit.
@@ -276,46 +275,15 @@ function List({ items, summary: text, notes, spacing, shareLink, busy = false, c
           {items.map((item, i) => (
             <li key={i}>
               <Shown item={item} spacing={spacing} />
+              <button type="button" className="use" aria-label={`Use ${clueText(item)} as the clue`} onClick={() => onUse(clueText(item))}>
+                Use as clue
+              </button>
             </li>
           ))}
         </ol>
       </article>
       {credit}
     </section>
-  );
-}
-
-function Shown({ item, spacing }: { item: Item; spacing: Spacing }) {
-  if (spacing !== 'tiles') {
-    const words = asText(item.words, spacing === 'spaced');
-    return (
-      <span className={spacing === 'spaced' ? 'spaced' : undefined}>
-        {words}
-        {item.spare.length > 0 && <span className="spare">{` + ${item.spare.join(spacing === 'spaced' ? ' ' : '')}`}</span>}
-      </span>
-    );
-  }
-  return (
-    <span className="tiles">
-      {item.words.map((word, w) => (
-        <span className="tile-word" key={w}>
-          {word.map((character, c) => (
-            <span className="tile" key={c}>
-              {character}
-            </span>
-          ))}
-        </span>
-      ))}
-      {item.spare.length > 0 && (
-        <span className="tile-word spare" aria-label={`and ${item.spare.join(' ')} left over`}>
-          {item.spare.map((character, c) => (
-            <span className="tile" key={c}>
-              {character}
-            </span>
-          ))}
-        </span>
-      )}
-    </span>
   );
 }
 
@@ -360,7 +328,7 @@ function shortfallMessage(shortfall: Shortfall): string {
   }
 }
 
-function Actions({ copyText, shareLink }: { copyText: string; shareLink: () => Promise<string> }) {
+function Actions({ copyText, shareLink, children }: { copyText: string; shareLink: () => Promise<string>; children?: ReactNode }) {
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -384,6 +352,7 @@ function Actions({ copyText, shareLink }: { copyText: string; shareLink: () => P
       <span role="status" className="status">
         {status ?? ''}
       </span>
+      {children}
       <button type="button" onClick={() => copy(copyText, 'Copied', 'Select the list and copy it instead.')}>
         Copy
       </button>

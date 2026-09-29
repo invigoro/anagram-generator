@@ -5,6 +5,7 @@
  * out, say during a screen share.
  */
 import { WORD_LISTS } from '../data/words';
+import { NEW_PUZZLE, type Puzzle } from '../engine/puzzle';
 import { COUNTS, DEFAULT_SETTINGS, MODES, MOST_WORDS, ORDERS, SAYABILITIES, SHAPES, SHORTEST_WORDS, WORD_COUNTS, type Settings } from './settings';
 
 /** Bumped when the shape of the state changes incompatibly. */
@@ -17,6 +18,8 @@ export interface PageState {
   text: string;
   seed: number;
   settings: Settings;
+  /** The puzzle being made, if there is one. */
+  puzzle?: Puzzle | null;
 }
 
 async function transform(bytes: Uint8Array<ArrayBuffer>, stream: CompressionStream | DecompressionStream): Promise<Uint8Array<ArrayBuffer>> {
@@ -49,17 +52,30 @@ function fromBase64Url(text: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 }
 
+/** Anything, as JSON packed into a URL-safe string: deflate-raw compressed and base64url encoded. */
+export async function pack(data: unknown): Promise<string> {
+  return toBase64Url(await transform(new TextEncoder().encode(JSON.stringify(data)), new CompressionStream('deflate-raw')));
+}
+
+/** What `pack` packed, or null if the string isn't one of its. */
+export async function unpack(packed: string): Promise<unknown> {
+  try {
+    return JSON.parse(new TextDecoder().decode(await transform(fromBase64Url(packed), new DecompressionStream('deflate-raw'))));
+  } catch {
+    return null;
+  }
+}
+
 /** The settings that differ from the defaults, to keep links short. */
 function changed(settings: Settings): Partial<Settings> {
   return Object.fromEntries(Object.entries(settings).filter(([key, value]) => DEFAULT_SETTINGS[key as keyof Settings] !== value));
 }
 
 /** The page's state as a URL fragment, or an empty string for a page with nothing on it. */
-export async function encodeState({ text, seed, settings }: PageState): Promise<string> {
+export async function encodeState({ text, seed, settings, puzzle }: PageState): Promise<string> {
   const differences = changed(settings);
-  if (text === '' && Object.keys(differences).length === 0) return '';
-  const json = new TextEncoder().encode(JSON.stringify({ v: VERSION, text, seed, settings: differences }));
-  return PREFIX + toBase64Url(await transform(json, new CompressionStream('deflate-raw')));
+  if (text === '' && Object.keys(differences).length === 0 && !puzzle) return '';
+  return PREFIX + (await pack({ v: VERSION, text, seed, settings: differences, ...(puzzle ? { puzzle } : {}) }));
 }
 
 const oneOf = <T>(value: unknown, allowed: readonly T[]): value is T => allowed.includes(value as T);
@@ -96,21 +112,37 @@ export function sanitizeSettings(data: unknown): Partial<Settings> {
   return settings;
 }
 
+/** Text from untrusted data, if it's text and not too long. */
+const textIn = (value: unknown, longest: number): string | undefined => (typeof value === 'string' && value.length <= longest ? value : undefined);
+
+/** A valid puzzle from untrusted data, or null. */
+export function sanitizePuzzle(data: unknown): Puzzle | null {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  const input = data as Record<string, unknown>;
+  const clue = textIn(input.clue, MAX_TEXT);
+  if (!clue?.trim()) return null;
+  return {
+    clue,
+    accepted: Array.isArray(input.accepted)
+      ? input.accepted.filter((accepted): accepted is string => typeof accepted === 'string' && accepted.length <= 200).slice(0, 50)
+      : [],
+    riddle: textIn(input.riddle, 500) ?? NEW_PUZZLE.riddle,
+    success: textIn(input.success, 200) ?? NEW_PUZZLE.success,
+  };
+}
+
 /** What a URL fragment says about the page, or null if it isn't one of this page's. */
 export async function decodeState(hash: string): Promise<Partial<PageState> | null> {
   if (!hash.startsWith(PREFIX)) return null;
-  try {
-    const json = await transform(fromBase64Url(hash.slice(PREFIX.length)), new DecompressionStream('deflate-raw'));
-    const data: unknown = JSON.parse(new TextDecoder().decode(json));
-    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
-    const input = data as Record<string, unknown>;
-    const state: Partial<PageState> = { settings: { ...DEFAULT_SETTINGS, ...sanitizeSettings(input.settings) } };
-    if (typeof input.text === 'string') state.text = input.text.slice(0, MAX_TEXT);
-    if (typeof input.seed === 'number' && Number.isInteger(input.seed) && input.seed >= 0 && input.seed < 2 ** 32) state.seed = input.seed;
-    return state;
-  } catch {
-    return null;
-  }
+  const data = await unpack(hash.slice(PREFIX.length));
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  const input = data as Record<string, unknown>;
+  const state: Partial<PageState> = { settings: { ...DEFAULT_SETTINGS, ...sanitizeSettings(input.settings) } };
+  if (typeof input.text === 'string') state.text = input.text.slice(0, MAX_TEXT);
+  if (typeof input.seed === 'number' && Number.isInteger(input.seed) && input.seed >= 0 && input.seed < 2 ** 32) state.seed = input.seed;
+  const puzzle = sanitizePuzzle(input.puzzle);
+  if (puzzle) state.puzzle = puzzle;
+  return state;
 }
 
 /** The address of the page with this state. */

@@ -55,6 +55,19 @@ export function neighboursKept(pairs: ReadonlySet<string>, letters: readonly str
   return kept;
 }
 
+/** The longest piece of the text left whole, either way, as its letters: see `longestRun`. */
+export function longestPiece(pieces: ReadonlySet<string>, letters: readonly string[], words: readonly number[]): string[] {
+  let longest: string[] = [];
+  for (const word of eachWord(letters, words)) {
+    for (let start = 0; start + longest.length < word.length; start++) {
+      let end = start + longest.length + 1;
+      while (end <= word.length && pieces.has(word.slice(start, end).join('\u0000'))) end++;
+      if (end - 1 - start > longest.length) longest = word.slice(start, end - 1);
+    }
+  }
+  return longest;
+}
+
 /** The most letters in a row, within a word, that read as they did somewhere in the text's words, either way. */
 export function longestRun(pieces: ReadonlySet<string>, letters: readonly string[], words: readonly number[]): number {
   let longest = 0;

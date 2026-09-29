@@ -2,12 +2,14 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { LETTER_MODEL } from '../data/words/letters';
 import { readText } from '../engine/letters';
 import { decodeModel } from '../engine/pronounce';
+import { NEW_PUZZLE, type Puzzle } from '../engine/puzzle';
 import { mulberry32, randomSeed } from '../engine/rng';
 import { scramble, type Scramble } from '../engine/scramble';
 import { Controls } from './Controls';
 import { Output } from './Output';
+import { PuzzleCard } from './PuzzleCard';
 import { DEFAULT_SETTINGS, rulesOf, type Settings } from './settings';
-import { handSearchFor, searchFor, usePhrases } from './usePhrases';
+import { handSearchFor, othersSearchFor, searchFor, usePhrases } from './usePhrases';
 import { decodeState, encodeState, linkFor, type PageState } from './urlState';
 
 interface AppProps {
@@ -24,14 +26,27 @@ const MODEL = decodeModel(LETTER_MODEL);
 /** No scrambles, for when the page isn't showing any. */
 const NONE: Scramble = { arrangements: [], others: 0, fitting: null, complete: true, shortfalls: [] };
 
-function savedWords(): string {
+/** Where the choice to hide the answer is kept, for whoever's at this browser. */
+const HIDDEN = 'sator:hide-answer';
+
+/** Something kept in the browser, or `fallback`. Storage can be blocked (private windows); these are only conveniences. */
+function saved(key: string, fallback = ''): string {
   try {
-    return localStorage.getItem(YOUR_WORDS) ?? '';
+    return localStorage.getItem(key) ?? fallback;
   } catch {
-    // Storage can be blocked (private windows); the words are only a convenience.
-    return '';
+    return fallback;
   }
 }
+
+function save(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // As above.
+  }
+}
+
+const savedWords = () => saved(YOUR_WORDS);
 
 export default function App({ initial }: AppProps) {
   const [text, setText] = useState(initial?.text ?? '');
@@ -41,26 +56,23 @@ export default function App({ initial }: AppProps) {
     return settings.yourWords ? settings : { ...settings, yourWords: savedWords() };
   });
   const [seed, setSeed] = useState(() => initial?.seed ?? randomSeed());
+  const [puzzle, setPuzzle] = useState<Puzzle | null>(initial?.puzzle ?? null);
+  const [hidden, setHidden] = useState(() => saved(HIDDEN) === 'yes');
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(YOUR_WORDS, settings.yourWords);
-    } catch {
-      // As above.
-    }
-  }, [settings.yourWords]);
+  useEffect(() => save(YOUR_WORDS, settings.yourWords), [settings.yourWords]);
+  useEffect(() => save(HIDDEN, hidden ? 'yes' : 'no'), [hidden]);
 
   // The URL always describes the page, so it can be bookmarked or shared.
   useEffect(() => {
     let current = true;
-    encodeState({ text, seed, settings }).then((hash) => {
+    encodeState({ text, seed, settings, puzzle }).then((hash) => {
       if (!current || window.location.hash === hash) return;
       window.history.replaceState(null, '', hash || window.location.pathname + window.location.search);
     });
     return () => {
       current = false;
     };
-  }, [text, seed, settings]);
+  }, [text, seed, settings, puzzle]);
 
   // A link pasted into the address bar of an open page changes only the hash.
   useEffect(() => {
@@ -71,6 +83,7 @@ export default function App({ initial }: AppProps) {
       const linked = state.settings ?? DEFAULT_SETTINGS;
       setSettings(linked.yourWords ? linked : { ...linked, yourWords: savedWords() });
       if (state.seed !== undefined) setSeed(state.seed);
+      setPuzzle(state.puzzle ?? null);
     };
     window.addEventListener('hashchange', apply);
     return () => window.removeEventListener('hashchange', apply);
@@ -103,6 +116,15 @@ export default function App({ initial }: AppProps) {
   const phrases = usePhrases(search);
   const change = (changes: Partial<Settings>) => setSettings((current) => ({ ...current, ...changes }));
 
+  // The other answers a puzzle's clue could have, found alongside whatever else is searched for.
+  const { wordList, yourWords } = shownSettings;
+  const othersSearch = useMemo(
+    () => (puzzle ? othersSearchFor(shownText, { ...DEFAULT_SETTINGS, wordList, yourWords }) : null),
+    [puzzle !== null, shownText, wordList, yourWords],
+  );
+  const others = usePhrases(othersSearch, 'others');
+  const useAsClue = (clue: string) => setPuzzle((current) => ({ ...NEW_PUZZLE, ...current, clue }));
+
   return (
     <div className="app">
       <aside className="panel">
@@ -117,6 +139,8 @@ export default function App({ initial }: AppProps) {
           settings={settings}
           onSettings={change}
           letterCount={read.letters.length}
+          hidden={hidden}
+          onHidden={setHidden}
           seed={seed}
           onReroll={() => setSeed(randomSeed())}
         />
@@ -125,6 +149,17 @@ export default function App({ initial }: AppProps) {
       </aside>
 
       <main className="stage">
+        {puzzle && (
+          <PuzzleCard
+            puzzle={puzzle}
+            answer={text}
+            hidden={hidden}
+            others={others}
+            settings={shownSettings}
+            onChange={setPuzzle}
+            onClose={() => setPuzzle(null)}
+          />
+        )}
         <Output
           typedText={shownSettings.mode === 'hand' ? text : shownText}
           typed={shownText.trim() !== ''}
@@ -135,7 +170,8 @@ export default function App({ initial }: AppProps) {
           seed={seed}
           hand={settings.hand}
           onHand={(hand) => change({ hand })}
-          shareLink={() => linkFor({ text, seed, settings })}
+          shareLink={() => linkFor({ text, seed, settings, puzzle })}
+          onUse={useAsClue}
         />
       </main>
 

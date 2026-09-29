@@ -177,6 +177,32 @@ button:hover {
   background: var(--hover);
 }
 
+/* A button that reads as a link: "Hide it". */
+button.link {
+  padding: 0;
+  font-size: 0.9rem;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+button.link:hover {
+  background: none;
+  text-decoration-thickness: 2px;
+}
+
+/* A button that stays out of the way until it's wanted: "Close". */
+button.quiet {
+  background: none;
+  border-color: transparent;
+}
+
+button.quiet:hover {
+  background: var(--hover);
+}
+
 :is(button, input, select, textarea, a, summary):focus-visible,
 .segmented input:focus-visible + span {
   outline: 2px solid var(--accent);
@@ -394,6 +420,147 @@ button:hover {
 .tile-word.spare .tile {
   border-style: dashed;
   box-shadow: none;
+}
+
+/* A label with a button at its end: "Word or phrase … Hide it" */
+.label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.label-row button.link {
+  font-size: 0.8rem;
+}
+
+/* The answer kept off the screen, as a password field would show it. */
+.masked {
+  -webkit-text-security: disc;
+  text-security: disc;
+}
+
+/* "Use as clue", beside each line of the list: shown when the line is pointed at or reached. */
+.arrangements .use {
+  margin-left: auto;
+  padding: 0.05rem 0.45rem;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0;
+  line-height: 1.5;
+  color: var(--accent);
+  opacity: 0;
+}
+
+.arrangements li:hover .use,
+.arrangements .use:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .arrangements .use {
+    opacity: 0.8;
+  }
+}
+
+/* The puzzle being made: its answer, its clue, and what it gives away */
+.puzzle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 46rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem 1.25rem;
+  background: var(--page);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+}
+
+.puzzle-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.puzzle-bar h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.3rem;
+}
+
+.puzzle-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+
+.puzzle-facts dt {
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.puzzle-facts dd {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  letter-spacing: 0.08em;
+}
+
+.puzzle-facts .clue .tiles {
+  font-size: 1.25rem;
+}
+
+.readout,
+.puzzle .problem {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.puzzle .problem {
+  color: var(--danger);
+}
+
+.others h3 {
+  margin: 0 0 0.35rem;
+}
+
+.others .hint,
+.others .message {
+  margin: 0 0 0.35rem;
+}
+
+.others[aria-busy='true'] {
+  opacity: 0.6;
+}
+
+.other-answers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.other-answers .check {
+  font-family: var(--serif);
+  letter-spacing: 0.05em;
+}
+
+.badge {
+  padding: 0 0.4rem;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-radius: 999px;
 }
 
 /* Writing an anagram by hand */

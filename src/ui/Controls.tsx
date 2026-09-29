@@ -81,23 +81,33 @@ interface ControlsProps {
   onSettings: (changes: Partial<Settings>) => void;
   /** How many letters the text has, for the pattern's hint. */
   letterCount: number;
+  /** Whether the text is kept off the screen, for tables where players can see it. */
+  hidden: boolean;
+  onHidden: (hidden: boolean) => void;
   seed: number;
   onReroll: () => void;
 }
 
-export function Controls({ text, onText, settings, onSettings, letterCount, seed, onReroll }: ControlsProps) {
+export function Controls({ text, onText, settings, onSettings, letterCount, hidden, onHidden, seed, onReroll }: ControlsProps) {
   const id = useId();
   const { mode } = settings;
   return (
     <div className="controls">
       <div className="field">
-        <label className="label" htmlFor={`${id}-text`}>
-          Word or phrase
-        </label>
-        {/* A password shouldn't be corrected, or sent off to be spell-checked. */}
+        <div className="label-row">
+          <label className="label" htmlFor={`${id}-text`}>
+            Word or phrase
+          </label>
+          <button type="button" className="link" aria-pressed={hidden} onClick={() => onHidden(!hidden)}>
+            {hidden ? 'Show it' : 'Hide it'}
+          </button>
+        </div>
+        {/* A password shouldn't be corrected, or sent off to be spell-checked. It's masked rather
+            than made a password field, so browsers don't offer to save it. */}
         <input
           id={`${id}-text`}
           type="text"
+          className={hidden ? 'masked' : undefined}
           value={text}
           placeholder="Open sesame"
           autoComplete="off"

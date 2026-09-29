@@ -292,7 +292,7 @@ describe('Puzzles', () => {
   it('makes a line of the list the clue, and says how much it gives away', async () => {
     const { user } = await start('Open sesame');
     const [first] = shown();
-    await user.click(screen.getByRole('button', { name: `Use ${first} as the clue` }));
+    await user.click(screen.getByRole('button', { name: `Use as clue: ${first}` }));
     expect(within(card()).getByText('Open sesame')).toBeInTheDocument();
     expect(within(card()).getByText(/letters? (is|are) where|No letter is where it was/)).toBeInTheDocument();
     expect([...card().querySelectorAll('.clue .tile')].map((tile) => tile.textContent).join('')).toBe(first.replace(' ', ''));
@@ -302,7 +302,7 @@ describe('Puzzles', () => {
 
   it('lists the other answers players might find, to accept or not, and keeps them in the link', async () => {
     const { user } = await start('Open sesame');
-    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /^Use as clue: / })[0]);
     const other = await within(card()).findByRole('checkbox', { name: 'ENEMA POSES' });
     await user.click(other);
     expect(other).toBeChecked();
@@ -311,7 +311,7 @@ describe('Puzzles', () => {
 
   it('hides the answer from anyone looking at the screen', async () => {
     const { user } = await start('Open sesame');
-    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /^Use as clue: / })[0]);
     await user.click(screen.getByRole('button', { name: 'Hide it' }));
     expect(textBox()).toHaveClass('masked');
     expect(within(card()).queryByText('Open sesame')).not.toBeInTheDocument();
@@ -321,14 +321,14 @@ describe('Puzzles', () => {
 
   it('says when the clue no longer fits the answer', async () => {
     const { user } = await start('Open sesame');
-    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /^Use as clue: / })[0]);
     await user.type(textBox(), 's');
     expect(within(card()).getByText('The clue doesn’t use the answer’s letters any more. Choose another from the list.')).toBeInTheDocument();
   });
 
   it('shows the clue to the players, a hint at a time, and the answer only when asked twice', async () => {
     const { user } = await start('Open sesame');
-    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /^Use as clue: / })[0]);
     await user.type(within(card()).getByRole('textbox', { name: 'Riddle' }), 'What opens the cave?');
     await user.click(within(card()).getByRole('button', { name: 'Show players' }));
     const showing = screen.getByRole('dialog', { name: 'The clue' });
@@ -349,7 +349,7 @@ describe('Puzzles', () => {
 
   it('shuffles the clue afresh for the players, and puts it back', async () => {
     const { user } = await start('Open sesame');
-    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /^Use as clue: / })[0]);
     await user.click(within(card()).getByRole('button', { name: 'Show players' }));
     const showing = screen.getByRole('dialog', { name: 'The clue' });
     const clue = () => within(showing).getByLabelText('Clue').textContent ?? '';
@@ -362,7 +362,7 @@ describe('Puzzles', () => {
 
   it('lists the hints for the game master, and hides them with the answer', async () => {
     const { user } = await start('Open sesame');
-    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /^Use as clue: / })[0]);
     expect(within(card()).getByText('9 hints, a letter more each time')).toBeInTheDocument();
     // Queries collapse the page's spaces, so the gap between words is one here.
     expect(within(card()).getByText('O P E N S E S A M _')).toBeInTheDocument();
@@ -372,7 +372,7 @@ describe('Puzzles', () => {
 
   it('copies a link for the players that checks answers without holding them', async () => {
     const { user } = await start('Open sesame');
-    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /^Use as clue: / })[0]);
     await user.selectOptions(within(card()).getByRole('combobox', { name: 'Hints on the players’ page' }), '1');
     await user.click(within(card()).getByRole('button', { name: 'Player link' }));
     expect(await within(card()).findByRole('link', { name: 'Try it' })).toBeInTheDocument();
@@ -386,7 +386,7 @@ describe('Puzzles', () => {
 
   it('prints the clue as tiles to cut out, or as a card with the riddle', async () => {
     const { user } = await start('Open sesame');
-    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /^Use as clue: / })[0]);
     await user.type(within(card()).getByRole('textbox', { name: 'Riddle' }), 'What opens the cave?');
     const printed: string[] = [];
     const print = vi.spyOn(window, 'print').mockImplementation(() => printed.push(document.querySelector('.print-sheet')?.textContent ?? ''));
@@ -405,7 +405,7 @@ describe('Puzzles', () => {
 
   it('opens the clue in Stele, kept clear of damage, and warns of letters its runes would change', async () => {
     const { user } = await start('Open sesame');
-    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /^Use as clue: / })[0]);
     const steleSettings = async () => {
       const href = within(card()).getByRole('link', { name: 'Open in Stele' }).getAttribute('href') ?? '';
       return (await unpack(href.slice('https://stele.invigoro.me/#s='.length))) as { medium: string; blocks: Record<string, unknown>[] };
@@ -427,7 +427,7 @@ describe('Puzzles', () => {
 
   it('scatters the clue in pieces, each to copy, print or carve on its own', async () => {
     const { user } = await start('Open sesame');
-    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /^Use as clue: / })[0]);
     const clue = (await decodeState(window.location.hash))?.puzzle?.clue ?? '';
     const split = within(card()).getByRole('combobox', { name: 'Split the clue' });
     expect(split).toHaveValue('1');
@@ -467,7 +467,7 @@ describe('Puzzles', () => {
     expect(screen.getByRole('radio', { name: 'Hard' })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'Tiles' })).toBeChecked();
     expect(kind).toHaveAccessibleDescription(/split into three pieces/);
-    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /^Use as clue: / })[0]);
     expect(within(card()).getByRole('textbox', { name: 'When they get it' })).toHaveValue('The last piece falls into place.');
     expect(within(card()).getAllByRole('button', { name: /^Copy piece \d$/ })).toHaveLength(3);
     expect(within(card()).getByRole('combobox', { name: 'Material' })).toHaveValue('parchment');

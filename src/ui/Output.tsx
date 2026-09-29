@@ -275,7 +275,7 @@ function List({ items, summary: text, notes, spacing, shareLink, onUse, busy = f
           {items.map((item, i) => (
             <li key={i}>
               <Shown item={item} spacing={spacing} />
-              <button type="button" className="use" aria-label={`Use ${clueText(item)} as the clue`} onClick={() => onUse(clueText(item))}>
+              <button type="button" className="use" aria-label={`Use as clue: ${clueText(item)}`} onClick={() => onUse(clueText(item))}>
                 Use as clue
               </button>
             </li>

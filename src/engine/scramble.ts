@@ -1,6 +1,7 @@
 import { isBlocked } from './blocklist';
 import { inPlace, longestRun, neighbourPairs, neighboursKept, pairOf, piecesOf } from './difficulty';
 import type { Text } from './letters';
+import { guidedFill, sayCost, type LetterModel } from './pronounce';
 import { randomInt, shuffled, type Random } from './rng';
 
 /**
@@ -105,7 +106,20 @@ export interface Scramble {
 export interface ScrambleOptions {
   count: number;
   order: Order;
+  /** Scrambles that could be said, somewhat or very: chosen and built with a letter model. */
+  sayable?: Sayable;
 }
+
+export interface Sayable {
+  model: LetterModel;
+  level: 'some' | 'very';
+}
+
+/** How strongly a sayable scramble's letters lean to the likeliest: see `guidedFill`. */
+const SHARPNESS = { some: 1, very: 2 } as const;
+
+/** How many more candidates to find for sayable scrambles, to choose the most sayable of. */
+const SAYABLE_POOL = 6;
 
 /** When there are this many arrangements or fewer, every one is looked at, rather than shuffling for them. */
 const LIST_UP_TO = 5040; // 7!, every arrangement of seven different letters
@@ -309,19 +323,35 @@ function shuffleGroup(letters: string[], group: readonly number[], original: rea
 /** How long a search for an arrangement that meets the rules goes on, for `n` letters. */
 const stepsFor = (n: number) => Math.min(1500, 30 * n);
 
-/** Arrangements shuffled for, the text having too many to look at every one. */
-function sample(text: Text, plan: Plan, rules: Rules, count: number, random: Random): Candidate[] {
+/**
+ * A group's letters put in its slots: shuffled, or for sayable scrambles, chosen a letter at a time
+ * by how well each follows the letters before it, steering clear of what the rules forbid.
+ */
+function fillGroup(letters: string[], group: readonly number[], ends: Uint8Array, plan: Plan, rules: Rules, random: Random, sayable?: Sayable): void {
+  if (!sayable) return shuffleGroup(letters, group, plan.original, random);
+  const avoid = (slot: number, letter: string) =>
+    (rules.moveEvery && letter === plan.original[slot]) ||
+    (rules.partNeighbours && slot > 0 && !ends[slot - 1] && plan.pairs.has(pairOf(letters[slot - 1], letter)));
+  guidedFill(sayable.model, letters, group, ends, random, SHARPNESS[sayable.level], avoid);
+}
+
+/**
+ * Up to `count` arrangements shuffled for, the text having too many to look at every one. The tries
+ * are limited by `need`, how many are wanted in the end: sayable scrambles want more to choose
+ * from, but not at the cost of searching for long.
+ */
+function sample(text: Text, plan: Plan, rules: Rules, count: number, random: Random, sayable?: Sayable, need = count): Candidate[] {
   const n = plan.original.length;
   const strict = rules.moveEvery || rules.partNeighbours;
   const seen = new Set<string>();
   const found: Candidate[] = [];
   let fits = 0;
   let work = 0;
-  for (let tries = 0; tries < count * 10 && fits < count && work < WORK_LIMIT; tries++) {
+  for (let tries = 0; tries < need * 10 && fits < count && work < WORK_LIMIT; tries++) {
     const words = rules.shape === 'count' ? randomSplit(n, wordsWanted(n, rules), random) : wordsOf(text, rules);
     const letters = [...plan.original];
-    for (const group of plan.groups) shuffleGroup(letters, group, plan.original, random);
     const ends = endsOf(words, n);
+    for (const group of plan.groups) fillGroup(letters, group, ends, plan, rules, random, sayable);
     // Once the rules look impossible, search less hard for each of the closest.
     const steps = fits === 0 && tries >= 10 ? Math.ceil(stepsFor(n) / 10) : stepsFor(n);
     work += n + (strict ? repair(letters, ends, plan, rules, random, steps) : 0);
@@ -359,9 +389,19 @@ interface WordChoices {
   fitting: number | null;
   /** Whether the word as typed is among them. */
   hasOwn: boolean;
+  /** Whether some were left out as less sayable. */
+  trimmed: boolean;
 }
 
-function choicesFor(plan: Plan, g: number, rules: Rules, count: number, ends: Uint8Array, random: Random): WordChoices {
+function choicesFor(
+  plan: Plan,
+  g: number,
+  rules: Rules,
+  count: number,
+  ends: Uint8Array,
+  random: Random,
+  sayable?: Sayable & { keep: number; need: number },
+): WordChoices {
   const { start, end } = plan.groupWords[g]!;
   const group = plan.groups[g];
   const own = plan.original.slice(start, end);
@@ -381,8 +421,8 @@ function choicesFor(plan: Plan, g: number, rules: Rules, count: number, ends: Ui
     const text = [...plan.original];
     const seen = new Set<string>();
     let fits = 0;
-    for (let tries = 0, work = 0; tries < count * 10 && fits < count && work < WORK_LIMIT; tries++) {
-      shuffleGroup(text, group, plan.original, random);
+    for (let tries = 0, work = 0; tries < (sayable?.need ?? count) * 10 && fits < count && work < WORK_LIMIT; tries++) {
+      fillGroup(text, group, ends, plan, rules, random, sayable);
       const steps = fits === 0 && tries >= 10 ? Math.ceil(stepsFor(own.length) / 10) : stepsFor(own.length);
       work += own.length + (strict ? repair(text, ends, plan, rules, random, steps, g) : 0);
       const word = text.slice(start, end);
@@ -396,8 +436,19 @@ function choicesFor(plan: Plan, g: number, rules: Rules, count: number, ends: Ui
     }
   }
   const least = options.reduce((lowest, option) => Math.min(lowest, option.cost), Infinity);
-  const words = options.filter((option) => option.cost === least).map((option) => option.word);
-  return { start, words, cost: least, fitting, hasOwn: words.some((word) => same(word, own)) };
+  let words = options.filter((option) => option.cost === least).map((option) => option.word);
+  // For sayable scrambles, only the word's most sayable arrangements.
+  let trimmed = false;
+  if (sayable && words.length > sayable.keep) {
+    const cost = (word: string[]) => sayCost(sayable.model, word, [word.length]);
+    words = words
+      .map((word) => ({ word, say: cost(word) }))
+      .sort((a, b) => a.say - b.say)
+      .slice(0, sayable.keep)
+      .map((option) => option.word);
+    trimmed = true;
+  }
+  return { start, words, cost: least, fitting, hasOwn: words.some((word) => same(word, own)), trimmed };
 }
 
 /**
@@ -405,9 +456,11 @@ function choicesFor(plan: Plan, g: number, rules: Rules, count: number, ends: Ui
  * arrangements of the whole text are the best of each word put together: each word is solved
  * alone, exactly where it's short enough to look at every one of its arrangements.
  */
-function byWord(text: Text, plan: Plan, rules: Rules, count: number, random: Random) {
+function byWord(text: Text, plan: Plan, rules: Rules, count: number, random: Random, sayable?: Sayable, need = count) {
   const ends = endsOf(text.words, plan.original.length);
-  const choices = plan.groups.map((_, g) => choicesFor(plan, g, rules, count, ends, random));
+  // Enough of each word's most sayable arrangements that together they make at least `count`.
+  const keep = Math.max(3, Math.ceil(count ** (1 / Math.max(1, plan.groups.length))));
+  const choices = plan.groups.map((_, g) => choicesFor(plan, g, rules, count, ends, random, sayable && { ...sayable, keep, need }));
   const cost = choices.reduce((total, choice) => total + choice.cost, 0);
   const combinations = choices.reduce(
     (total, choice) => (total > Number.MAX_SAFE_INTEGER / Math.max(1, choice.words.length) ? Number.MAX_SAFE_INTEGER : total * choice.words.length),
@@ -447,7 +500,7 @@ function byWord(text: Text, plan: Plan, rules: Rules, count: number, random: Ran
   return {
     candidates: shuffled(candidates, random),
     fitting,
-    complete: exact && combinations <= LIST_UP_TO && candidates.length <= count,
+    complete: exact && !choices.some((choice) => choice.trimmed) && combinations <= LIST_UP_TO && candidates.length <= count,
   };
 }
 
@@ -493,7 +546,7 @@ const wordsText = (arrangement: Arrangement) => {
  * word. When there are few enough, every one is looked at, and when there are only a few, the
  * list has them all.
  */
-export function scramble(text: Text, rules: Rules, { count, order }: ScrambleOptions, random: Random): Scramble {
+export function scramble(text: Text, rules: Rules, { count, order, sayable }: ScrambleOptions, random: Random): Scramble {
   const n = text.letters.length;
   if (rules.shape === 'pattern' && sum(rules.pattern) !== n) {
     return { arrangements: [], others: 0, fitting: null, complete: true, shortfalls: n > 0 ? [{ kind: 'pattern', letters: n }] : [] };
@@ -508,11 +561,14 @@ export function scramble(text: Text, rules: Rules, { count, order }: ScrambleOpt
   }, 1);
   const others = each - 1 > Number.MAX_SAFE_INTEGER / skeletons ? Number.MAX_SAFE_INTEGER : (each - 1) * skeletons;
 
+  // Sayable scrambles are the most sayable of more candidates.
+  const pool = sayable ? Math.max(count * SAYABLE_POOL, 150) : count;
   let candidates: Candidate[];
   let fitting: number | null = null;
   let complete = false;
   if (rules.shape === 'words') {
-    ({ candidates, fitting, complete } = byWord(text, plan, rules, count, random));
+    ({ candidates, fitting, complete } = byWord(text, plan, rules, pool, random, sayable, count));
+    complete &&= candidates.length <= count;
   } else if (others <= LIST_UP_TO) {
     const all: Candidate[] = [];
     const shapes = rules.shape === 'count' ? Array.from(splits(n, k, shortest(n, k))) : [wordsOf(text, rules)];
@@ -531,26 +587,41 @@ export function scramble(text: Text, rules: Rules, { count, order }: ScrambleOpt
     );
     complete = candidates.length <= count;
   } else {
-    candidates = sample(text, plan, rules, count, random);
+    candidates = sample(text, plan, rules, pool, random, sayable, count);
   }
 
-  const measure = (candidate: Candidate): Arrangement & { cost: number } => ({
+  const measure = (candidate: Candidate): Arrangement & { cost: number; say: number } => ({
     letters: candidate.letters,
     words: candidate.words,
     cost: candidate.cost,
     inPlace: inPlace(plan.original, candidate.letters),
     neighboursKept: neighboursKept(plan.pairs, candidate.letters, candidate.words),
     longestRun: longestRun(plan.pieces, candidate.letters, candidate.words),
+    say: sayable ? sayCost(sayable.model, candidate.letters, candidate.words) : 0,
   });
+  type Measured = ReturnType<typeof measure>;
   // Best first: those that break the fewest rules, then give away the least, whole pieces of the
   // text first, then old neighbours, then letters in place. Sorting keeps the shuffled order among equals.
-  const shown =
-    order === 'best'
-      ? candidates
-          .map(measure)
-          .sort((a, b) => a.cost - b.cost || a.longestRun - b.longestRun || a.neighboursKept - b.neighboursKept || a.inPlace - b.inPlace)
-          .slice(0, count)
-      : candidates.slice(0, count).map(measure);
+  const byGiveaway = (a: Measured, b: Measured) =>
+    a.cost - b.cost || a.longestRun - b.longestRun || a.neighboursKept - b.neighboursKept || a.inPlace - b.inPlace;
+  // Sayable: those that break the fewest rules, then those that leave no piece of the text whole
+  // (SESAME backwards is very sayable, and no puzzle at all), then the most sayable.
+  const bySaying = (a: Measured, b: Measured) =>
+    a.cost - b.cost || Number(a.longestRun > 2) - Number(b.longestRun > 2) || a.say - b.say || byGiveaway(a, b);
+  let shown: Measured[];
+  if (sayable) {
+    const ranked = candidates.map(measure).sort(bySaying);
+    // Very: the most sayable. Somewhat: a random handful of the more sayable half.
+    shown =
+      sayable.level === 'very'
+        ? ranked.slice(0, count)
+        : shuffled(ranked.slice(0, Math.max(count, Math.ceil(ranked.length / 2))), random)
+            .slice(0, count)
+            .sort(order === 'best' ? bySaying : () => 0);
+    if (order === 'shuffled') shown = shuffled(shown, random);
+  } else {
+    shown = order === 'best' ? candidates.map(measure).sort(byGiveaway).slice(0, count) : candidates.slice(0, count).map(measure);
+  }
   if (order === 'az') shown.sort((a, b) => wordsText(a).localeCompare(wordsText(b), 'en'));
 
   return {

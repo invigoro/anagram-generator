@@ -11,14 +11,22 @@ import {
   MOST_WORDS,
   ORDERS,
   parsePattern,
+  SAYABILITIES,
   SHAPES,
   SHORTEST_WORDS,
   WORD_COUNTS,
   type Difficulty,
   type Mode,
+  type Sayability,
   type Settings,
   type Spacing,
 } from './settings';
+
+const SAYABLE_LABELS: Record<Sayability, { label: string; hint: string }> = {
+  off: { label: 'Off', hint: 'The letters in any order.' },
+  some: { label: 'Somewhat', hint: 'Leaning towards letters that could be said aloud.' },
+  very: { label: 'Very', hint: 'Reading as much like words as the letters allow.' },
+};
 
 const MODE_LABELS: Record<Mode, { label: string; hint: string }> = {
   scramble: { label: 'Scrambles', hint: 'The letters jumbled, as hard as you like.' },
@@ -234,6 +242,14 @@ function ScrambleShape({ settings, onSettings, letterCount }: PartProps & { lett
           {settings.shape === 'pattern' ? patternHint(settings.pattern, letterCount) : SHAPE_LABELS[settings.shape].hint}
         </small>
       </div>
+
+      <Choice
+        legend="Pronounceable"
+        value={settings.sayable}
+        options={SAYABILITIES.map((value) => ({ value, label: SAYABLE_LABELS[value].label }))}
+        onChange={(sayable) => onSettings({ sayable })}
+        hint={SAYABLE_LABELS[settings.sayable].hint}
+      />
     </>
   );
 }

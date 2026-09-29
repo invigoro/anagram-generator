@@ -6,6 +6,10 @@ import type { Order, Rules, Shape } from '../engine/scramble';
 /** How the arrangements are shown: letters together, spaced out, or on tiles. */
 export type Spacing = 'together' | 'spaced' | 'tiles';
 
+/** How sayable a scramble should be: any order of letters, or leaning somewhat or very towards the sayable. */
+export type Sayability = 'off' | 'some' | 'very';
+export const SAYABILITIES: readonly Sayability[] = ['off', 'some', 'very'];
+
 /** What the page makes: scrambles, phrases of real words, or an anagram written by hand. */
 export type Mode = 'scramble' | 'words' | 'hand';
 export const MODES: readonly Mode[] = ['scramble', 'words', 'hand'];
@@ -27,6 +31,7 @@ export interface Settings extends LetterOptions {
   /** An anagram written by hand, as typed. */
   hand: string;
   shape: Shape;
+  sayable: Sayability;
   /** For the 'count' shape. */
   wordCount: number;
   /** For the 'pattern' shape, as typed: "3-4-3". */
@@ -72,6 +77,7 @@ export const DEFAULT_SETTINGS: Settings = {
   yourWords: '',
   hand: '',
   ...DIFFICULTY_RULES.medium,
+  sayable: 'off',
   wordCount: 3,
   pattern: '',
   letterCase: 'upper',

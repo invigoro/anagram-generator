@@ -1,7 +1,9 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { LETTER_MODEL } from '../data/words/letters';
 import { readText } from '../engine/letters';
+import { decodeModel } from '../engine/pronounce';
 import { mulberry32, randomSeed } from '../engine/rng';
-import { scramble } from '../engine/scramble';
+import { scramble, type Scramble } from '../engine/scramble';
 import { Controls } from './Controls';
 import { Output } from './Output';
 import { DEFAULT_SETTINGS, rulesOf, type Settings } from './settings';
@@ -15,6 +17,12 @@ interface AppProps {
 
 /** Where the game master's own words are kept between visits. */
 const YOUR_WORDS = 'sator:your-words';
+
+/** The letter model for pronounceable scrambles. */
+const MODEL = decodeModel(LETTER_MODEL);
+
+/** No scrambles, for when the page isn't showing any. */
+const NONE: Scramble = { arrangements: [], others: 0, fitting: null, complete: true, shortfalls: [] };
 
 function savedWords(): string {
   try {
@@ -71,10 +79,22 @@ export default function App({ initial }: AppProps) {
   // A long text under strict rules takes a moment to scramble, so typing goes first.
   const shownText = useDeferredValue(text);
   const shownSettings = useDeferredValue(settings);
-  const { punctuation, digits, accents, count, order } = shownSettings;
+  const { punctuation, digits, accents, count, order, sayable, mode } = shownSettings;
   const read = useMemo(() => readText(shownText, { punctuation, digits, accents }), [shownText, punctuation, digits, accents]);
-  const rules = useMemo(() => rulesOf(shownSettings), [shownSettings]);
-  const result = useMemo(() => scramble(read, rules, { count, order }, mulberry32(seed)), [read, rules, count, order, seed]);
+  const { shape, wordCount, pattern, keepFirst, keepLast, moveEvery, partNeighbours } = shownSettings;
+  // Made afresh only when the rules' own settings change, so typing elsewhere doesn't scramble again.
+  const rules = useMemo(
+    () => rulesOf({ ...DEFAULT_SETTINGS, shape, wordCount, pattern, keepFirst, keepLast, moveEvery, partNeighbours }),
+    [shape, wordCount, pattern, keepFirst, keepLast, moveEvery, partNeighbours],
+  );
+  // Scrambles are for their own page, and for real words when the letters have none.
+  const result = useMemo(
+    () =>
+      mode === 'hand'
+        ? NONE
+        : scramble(read, rules, { count, order, sayable: sayable === 'off' ? undefined : { model: MODEL, level: sayable } }, mulberry32(seed)),
+    [mode, read, rules, count, order, sayable, seed],
+  );
   const search = useMemo(() => {
     if (shownSettings.mode === 'words') return searchFor(shownText, shownSettings);
     if (shownSettings.mode === 'hand') return handSearchFor(shownText, shownSettings);

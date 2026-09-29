@@ -5,7 +5,7 @@
  * out, say during a screen share.
  */
 import { WORD_LISTS } from '../data/words';
-import { COUNTS, DEFAULT_SETTINGS, MODES, MOST_WORDS, ORDERS, SHAPES, SHORTEST_WORDS, WORD_COUNTS, type Settings } from './settings';
+import { COUNTS, DEFAULT_SETTINGS, MODES, MOST_WORDS, ORDERS, SAYABILITIES, SHAPES, SHORTEST_WORDS, WORD_COUNTS, type Settings } from './settings';
 
 /** Bumped when the shape of the state changes incompatibly. */
 const VERSION = 1;
@@ -80,6 +80,7 @@ export function sanitizeSettings(data: unknown): Partial<Settings> {
   if (typeof input.yourWords === 'string' && input.yourWords.length <= 5000) settings.yourWords = input.yourWords;
   if (typeof input.hand === 'string' && input.hand.length <= MAX_TEXT) settings.hand = input.hand;
   if (oneOf(input.shape, SHAPES)) settings.shape = input.shape;
+  if (oneOf(input.sayable, SAYABILITIES)) settings.sayable = input.sayable;
   if (oneOf(input.wordCount, WORD_COUNTS)) settings.wordCount = input.wordCount;
   if (typeof input.pattern === 'string' && input.pattern.length <= 60) settings.pattern = input.pattern;
   for (const rule of ['keepFirst', 'keepLast', 'moveEvery', 'partNeighbours'] as const) {

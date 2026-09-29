@@ -9,11 +9,15 @@
  * ESDB ranks words by how common they are, in sizes. Each size gets a file of the words that first
  * appear at that size, so a list is the files up to its size. Set PYTHON if Python isn't `python`.
  * SOURCES.md records the release and the filters.
+ *
+ * It then builds the letter model for pronounceable scrambles from the Standard list (sizes 35 and
+ * 50). `npm run build-words -- --model` builds just the model, from the lists already here.
  */
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isBlocked } from '../src/engine/blocklist.ts';
+import { buildModel, encodeModel } from '../src/engine/pronounce.ts';
 
 const RELEASE = '2026.02.25';
 const SIZES = [35, 50, 60, 70];
@@ -64,21 +68,41 @@ function fit(words: readonly string[]): Set<string> {
 
 const esdb = process.argv[2];
 if (!esdb) {
-  console.error('Usage: npm run build-words -- <an ESDB checkout, with scowl.db built>');
+  console.error('Usage: npm run build-words -- <an ESDB checkout, with scowl.db built>, or -- --model for just the letter model');
   process.exit(1);
 }
 
-let before = new Set<string>();
-for (const size of SIZES) {
-  const words = fit(exportList(esdb, size));
-  const added = [...words].filter((word) => !before.has(word)).sort();
-  const header = [
-    `Words from the English Speller Database (ESDB), release ${RELEASE}: those that first appear at size ${size}.`,
-    'SOURCES.md says how this list was made.',
-    '',
-    ...NOTICE.split('\n'),
-  ].map((line) => `# ${line}`.trimEnd());
-  writeFileSync(join(OUTPUT, `${size}.txt`), [...header, ...added, ''].join('\n'));
-  console.log(`size ${size}: ${added.length.toLocaleString('en')} words`);
-  before = words;
+if (esdb !== '--model') {
+  let before = new Set<string>();
+  for (const size of SIZES) {
+    const words = fit(exportList(esdb, size));
+    const added = [...words].filter((word) => !before.has(word)).sort();
+    const header = [
+      `Words from the English Speller Database (ESDB), release ${RELEASE}: those that first appear at size ${size}.`,
+      'SOURCES.md says how this list was made.',
+      '',
+      ...NOTICE.split('\n'),
+    ].map((line) => `# ${line}`.trimEnd());
+    writeFileSync(join(OUTPUT, `${size}.txt`), [...header, ...added, ''].join('\n'));
+    console.log(`size ${size}: ${added.length.toLocaleString('en')} words`);
+    before = words;
+  }
 }
+
+// The letter model, from the Standard list.
+const standard = [35, 50].flatMap((size) =>
+  readFileSync(join(OUTPUT, `${size}.txt`), 'utf8')
+    .split('\n')
+    .filter((line) => line !== '' && !line.startsWith('#')),
+);
+const model = encodeModel(buildModel(standard));
+writeFileSync(
+  join(OUTPUT, 'letters.ts'),
+  [
+    '// Built by `npm run build-words` from the Standard word list (see SOURCES.md): how surprising each',
+    '// letter is after the two before it. See src/engine/pronounce.ts.',
+    `export const LETTER_MODEL = '${model}';`,
+    '',
+  ].join('\n'),
+);
+console.log(`letter model: ${model.length.toLocaleString('en')} characters, from ${standard.length.toLocaleString('en')} words`);

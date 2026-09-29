@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { LETTER_MODEL } from '../data/words/letters';
 import { neighbourPairs, neighboursKept } from './difficulty';
 import { readText } from './letters';
+import { decodeModel, sayCost } from './pronounce';
 import { mulberry32 } from './rng';
 import { arrangements, countArrangements, scramble, type Arrangement, type Order, type Rules } from './scramble';
 
@@ -253,6 +255,71 @@ describe('rules', () => {
   it('says when old neighbours can’t all be parted', () => {
     // SESAME's E can sit by nothing but A or E, and its S by nothing but M or S.
     expect(scrambled('Sesame', { shape: 'words', partNeighbours: true }).shortfalls).toEqual([{ kind: 'neighbours' }]);
+  });
+});
+
+describe('sayable scrambles', () => {
+  const model = decodeModel(LETTER_MODEL);
+  const sayable = (level: 'some' | 'very') => ({ model, level });
+  /** Scrambles in no particular order, so without sayability they're a random pick. */
+  function average(text: string, rules: Partial<Rules>, level?: 'some' | 'very') {
+    const shown = scramble(readText(text), { ...RUN, ...rules }, { count: 25, order: 'shuffled', sayable: level && sayable(level) }, mulberry32(3)).arrangements;
+    return { shown, cost: shown.reduce((sum, arrangement) => sum + sayCost(model, arrangement.letters, arrangement.words), 0) / shown.length };
+  }
+
+  it('reads more like words than a random pick', () => {
+    for (const [text, rules] of [
+      ['Open sesame', { shape: 'words', moveEvery: true }],
+      ['The key lies beneath the altar', { moveEvery: true }],
+      ['Speak friend and enter', { shape: 'lengths' }],
+    ] as [string, Partial<Rules>][]) {
+      const [off, some, very] = [average(text, rules), average(text, rules, 'some'), average(text, rules, 'very')];
+      expect(some.cost).toBeLessThan(off.cost);
+      expect(very.cost).toBeLessThan(off.cost);
+      expect(very.shown).toHaveLength(25);
+    }
+  });
+
+  it('leaves fewer pieces of the text whole very sayable than somewhat, and reads more like words', () => {
+    // Pieces of the text (THE, SES) read like English, so they flatter somewhat's sayability; very
+    // puts them last, which costs it a little elsewhere.
+    const whole = (shown: Arrangement[]) => shown.filter((arrangement) => arrangement.longestRun > 2).length;
+    for (const [text, rules] of [
+      ['Open sesame', { shape: 'words', moveEvery: true }],
+      ['The key lies beneath the altar', { moveEvery: true }],
+      ['Speak friend and enter', { shape: 'lengths' }],
+    ] as [string, Partial<Rules>][]) {
+      expect(whole(average(text, rules, 'very').shown)).toBeLessThanOrEqual(whole(average(text, rules, 'some').shown));
+    }
+    expect(average('Speak friend and enter', { shape: 'lengths' }, 'very').cost).toBeLessThan(
+      average('Speak friend and enter', { shape: 'lengths' }, 'some').cost,
+    );
+  });
+
+  it('still follows the rules, and keeps every letter', () => {
+    const { shown } = average('The key lies beneath the altar', { moveEvery: true, partNeighbours: true }, 'very');
+    const pairs = neighbourPairs([...'THEKEYLIESBENEATHTHEALTAR'], [3, 3, 4, 7, 3, 5]);
+    for (const arrangement of shown) {
+      expect(arrangement.inPlace).toBe(0);
+      expect(neighboursKept(pairs, arrangement.letters, arrangement.words)).toBe(0);
+      expect(sorted(arrangement.letters)).toBe(sorted('THEKEYLIESBENEATHTHEALTAR'));
+    }
+  });
+
+  it('puts last any that leave a piece of the text whole, however sayable', () => {
+    // SESAME backwards, EMASES, is among the most sayable of its arrangements.
+    const shown = scramble(readText('Sesame'), { ...RUN, shape: 'words', moveEvery: true }, { count: 25, order: 'best', sayable: sayable('very') }, mulberry32(3))
+      .arrangements;
+    expect(shown[0].longestRun).toBeLessThanOrEqual(2);
+    const firstWhole = shown.findIndex((arrangement) => arrangement.longestRun > 2);
+    expect(firstWhole).toBeGreaterThan(0);
+    for (const arrangement of shown.slice(firstWhole)) expect(arrangement.longestRun).toBeGreaterThan(2);
+    expect(shown.map(joined).indexOf('EMASES')).not.toBeLessThan(firstWhole);
+  });
+
+  it('is reproducible from the seed', () => {
+    const once = scramble(readText('Open sesame'), { ...RUN, moveEvery: true }, { count: 10, order: 'best', sayable: sayable('some') }, mulberry32(4));
+    expect(scramble(readText('Open sesame'), { ...RUN, moveEvery: true }, { count: 10, order: 'best', sayable: sayable('some') }, mulberry32(4))).toEqual(once);
   });
 });
 

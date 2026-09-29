@@ -87,6 +87,17 @@ describe('App', () => {
     for (const arrangement of shown()) expect(arrangement).toMatch(/^[A-Z]{10}$/);
   });
 
+  it('makes scrambles pronounceable', async () => {
+    const { user } = await start('Speak friend and enter');
+    const any = shown();
+    await user.click(screen.getByRole('radio', { name: 'Very' }));
+    expect(screen.getByText('Reading as much like words as the letters allow.')).toBeInTheDocument();
+    const sayable = shown();
+    expect(sayable).toHaveLength(50);
+    expect(sayable).not.toEqual(any);
+    for (const arrangement of sayable) expect(sorted(arrangement.replace(/ /g, ''))).toBe(sorted('SPEAKFRIENDANDENTER'));
+  });
+
   it('says when not every letter can move, and shows the closest', async () => {
     await start('aab');
     expect(screen.getByRole('note')).toHaveTextContent('Not every letter of AAB can move: more than half of them are A.');

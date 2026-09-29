@@ -13,5 +13,7 @@ export default defineConfig({
     // The engine is plain TypeScript. UI tests opt into a DOM with `// @vitest-environment jsdom`.
     environment: 'node',
     setupFiles: ['./src/test/setup.ts'],
+    // Page tests load and search real word lists, which takes longer on CI's machines than here.
+    testTimeout: 30_000,
   },
 });

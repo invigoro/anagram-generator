@@ -36,6 +36,53 @@ export function countsOf(letters: Iterable<string>): Uint8Array {
   return counts;
 }
 
+const indexes = new WeakMap<Dictionary, Map<string, number>>();
+
+/** Where each word is in a dictionary, worked out once for each. */
+function indexOf(dict: Dictionary): Map<string, number> {
+  let index = indexes.get(dict);
+  if (!index) indexes.set(dict, (index = new Map(dict.words.map((word, i) => [word, i]))));
+  return index;
+}
+
+/**
+ * A dictionary with more words in it, ranked `rank`: the game master's own, added to a word list's
+ * without building the list's again. A word already there takes the new rank if it's commoner.
+ */
+export function withWords(dict: Dictionary, added: readonly string[], rank: number): Dictionary {
+  if (added.length === 0) return dict;
+  const ranks = Uint8Array.from(dict.ranks);
+  const known = indexOf(dict);
+  const extra: string[] = [];
+  for (const listed of added) {
+    const word = listed.toUpperCase();
+    if (!/^[A-Z]+$/.test(word) || extra.includes(word)) continue;
+    const at = known.get(word);
+    if (at === undefined) extra.push(word);
+    else ranks[at] = Math.min(ranks[at], rank);
+  }
+  if (extra.length === 0) return { ...dict, ranks };
+  const more = makeDictionary([extra]);
+  const counts = new Uint8Array(dict.counts.length + more.counts.length);
+  counts.set(dict.counts);
+  counts.set(more.counts, dict.counts.length);
+  const masks = new Uint32Array(dict.masks.length + more.masks.length);
+  masks.set(dict.masks);
+  masks.set(more.masks, dict.masks.length);
+  const byKey = new Map(dict.byKey);
+  more.words.forEach((word, i) => {
+    const key = keyOf(word);
+    byKey.set(key, [...(byKey.get(key) ?? []), dict.words.length + i]);
+  });
+  return {
+    words: [...dict.words, ...more.words],
+    ranks: Uint8Array.from([...ranks, ...more.words.map(() => rank)]),
+    counts,
+    masks,
+    byKey,
+  };
+}
+
 /**
  * A dictionary from lists of words, commonest list first: each word takes the rank of the first
  * list it's in. Words are put in capitals, and any not wholly of the letters A to Z are left out.

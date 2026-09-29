@@ -181,11 +181,10 @@ describe('App', () => {
 });
 
 describe('Real words', () => {
-  /** Types the text and asks for real words, waiting for them to be found. */
+  /** Types the text and asks for real words. Each test waits for what it expects to see. */
   async function words(text: string) {
     const started = await start(text);
     await started.user.click(screen.getByRole('radio', { name: 'Real words' }));
-    await waitFor(() => expect(screen.queryByText('Looking for words…')).not.toBeInTheDocument(), { timeout: 10_000 });
     return started;
   }
 

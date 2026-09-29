@@ -3,7 +3,7 @@
  * SOURCES.md records where they came from. Each file is built as its own chunk and fetched only
  * when first used.
  */
-import { makeDictionary, type Dictionary } from '../../engine/words';
+import { makeDictionary, withWords, type Dictionary } from '../../engine/words';
 
 export const SIZES = [35, 50, 60, 70] as const;
 export type Size = (typeof SIZES)[number];
@@ -31,21 +31,28 @@ export async function loadSize(size: Size): Promise<string[]> {
   return text.split('\n').filter((line) => line !== '' && !line.startsWith('#'));
 }
 
-const dictionaries = new Map<string, Promise<Dictionary>>();
+const lists = new Map<WordList, Promise<Dictionary>>();
+
+/** A word list as a dictionary, built once. Its sizes rank from 1, leaving 0 for the game master's own words. */
+function loadList(list: WordList): Promise<Dictionary> {
+  let dictionary = lists.get(list);
+  if (!dictionary) {
+    dictionary = Promise.all(LIST_SIZES[list].map(loadSize)).then((sizes) => makeDictionary([[], ...sizes]));
+    lists.set(list, dictionary);
+    // A list that failed to load is tried again next time.
+    dictionary.catch(() => lists.delete(list));
+  }
+  return dictionary;
+}
+
+let last: { key: string; dictionary: Promise<Dictionary> } | null = null;
 
 /**
  * A word list as a dictionary, with the game master's own words in it too, ranked first (see
- * RANK_COSTS). The last few are kept, since building one takes a moment.
+ * RANK_COSTS). The list is built once, and the words added to it, so typing them stays quick.
  */
 export function loadDictionary(list: WordList, yourWords: readonly string[]): Promise<Dictionary> {
   const key = `${list}|${yourWords.join(',')}`;
-  let dictionary = dictionaries.get(key);
-  if (!dictionary) {
-    dictionary = Promise.all(LIST_SIZES[list].map(loadSize)).then((sizes) => makeDictionary([yourWords, ...sizes]));
-    dictionaries.set(key, dictionary);
-    if (dictionaries.size > 4) dictionaries.delete(dictionaries.keys().next().value!);
-    // A list that failed to load is tried again next time.
-    dictionary.catch(() => dictionaries.delete(key));
-  }
-  return dictionary;
+  if (last?.key !== key) last = { key, dictionary: loadList(list).then((dictionary) => withWords(dictionary, yourWords, 0)) };
+  return last.dictionary;
 }

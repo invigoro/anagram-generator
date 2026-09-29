@@ -9,29 +9,42 @@ OPERA ROTAS), the Roman word square whose letters rearrange into PATER NOSTER.
 
 ## Using it
 
-- **Type a word or phrase,** and 50 scrambles of it appear as you type. None is ever the text as
-  typed, and none spells a slur or a swear word.
-- **Pick a difficulty:**
-  - **Easy** keeps the words, and their first letters.
-  - **Medium** keeps the words, and moves every letter.
-  - **Hard** runs the words together, moves every letter, and parts old neighbours: letters side by
-    side in a word never end up side by side again.
-- **Shape the words:** keep them, keep their lengths with the letters mixed across them, run them
-  together, or split them into a number of new words or a pattern of lengths like 3-4-3.
+Type a word or phrase, and pick what to make from it: scrambles, phrases of real words, or an
+anagram of your own. The list updates as you type. Nothing is ever the text as typed, and nothing
+spells a slur or a swear word.
+
+- **Scrambles:**
+  - **Pick a difficulty.** Easy keeps the words and their first letters. Medium keeps the words and
+    moves every letter. Hard runs the words together, moves every letter, and parts old neighbours:
+    letters side by side in a word never end up side by side again.
+  - **Shape the words:** keep them, keep their lengths with the letters mixed across them, run them
+    together, or split them into a number of new words or a pattern of lengths like 3-4-3.
+  - **Make them pronounceable,** somewhat or very, so they read like words on a handout and can be
+    read aloud: SPEAK FRIEND AND ENTER as RATIONSESTARDARDISED… rather than NKLEEOESFIITTSARHOE….
+  - **More options** has each rule on its own (keep each word's first or last letter, move every
+    letter, part old neighbours), punctuation kept in place (DON'T → TON'D), digits left out, and
+    accents taken off (É becomes E).
+  - **When the letters can't do what's asked** (AAB can't move every letter), the page says so and
+    shows the closest. Short words get every arrangement there is: CAT has five besides its own.
+- **Real words:** phrases of real words that use every letter, few and common words first.
+  DORMITORY gives DIRTY ROOM.
+  - **Pick a word list**, Common, Standard or Large, and the most words a phrase may have.
+  - **More options** has the shortest word, words every phrase must have or mustn't, and whether
+    the text's own words may be used. They're left out unless you say, and words that are pieces of
+    the text (PASS and WORD in PASSWORD) go last.
+  - **Your words:** names and places from your game, for phrases to use too. They're kept in your
+    browser, and travel in share links.
+  - **When no phrase uses every letter,** the closest ones, with the letters they leave over set
+    apart: MELLON gives LEMON, with an L over. With no real words in the letters at all, scrambles.
+- **By hand:** write an anagram of your own, as the best ones are (I AM LORD VOLDEMORT). The page
+  shows the letters you haven't used yet, or any you've used too often, with phrases that would
+  finish it and words that fit in what's left: a click adds one.
 - **Write them** in capitals, lowercase or title case, with the letters together, spaced out
-  (S W O R D) or on tiles.
-- **More options** has:
-  - each rule on its own: keep each word's first or last letter, move every letter, part old
-    neighbours
-  - punctuation kept in place (DON'T → TON'D), digits left out, and accents taken off (É becomes E)
-  - how many to show, and in what order. Best first puts at the top those that give away least: no
-    piece of the text left whole, even backwards, and few old neighbours or letters in place.
-- **When the letters can't do what's asked** (AAB can't move every letter), the page says so and
-  shows the closest.
-- **Short words get every arrangement there is** (CAT has five besides its own), and the count says
-  how many there are in all.
-- 🎲 **Reroll** for new arrangements. The seed is shown beside it: the same seed, text and settings
-  always give the same arrangements.
+  (S W O R D) or on tiles. More options also has how many to show, and in what order. For
+  scrambles, best first puts at the top those that give away least: no piece of the text left
+  whole, even backwards, and few old neighbours or letters in place.
+- 🎲 **Reroll** for new scrambles. The seed is shown beside it: the same seed, text and settings
+  always give the same list.
 - **Take it away:**
   - **Copy** copies the list, one arrangement to a line.
   - **Share link** copies a link that brings back the same list. The page's address always holds its
@@ -51,6 +64,9 @@ npm test          # unit tests
 npm run build     # type-check, then build to dist/
 npm run preview   # serve the production build locally
 ```
+
+The word lists come from the English Speller Database. [SOURCES.md](SOURCES.md) says how they were
+made, and how to make them again with `npm run build-words`.
 
 Every push to `main` runs the tests, builds the site and deploys it to GitHub Pages
 ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)). Pushes to other branches run the

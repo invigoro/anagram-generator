@@ -12,7 +12,7 @@ other real words, for the players to work back. It does two jobs:
 
 The site must be static, hosted on GitHub Pages, and everything runs in the browser.
 
-**Current phase:** Phase 2. Phases 0 and 1 are done. See [Milestones](#milestones).
+**Current phase:** Phase 3. Phases 0 to 2 are done. See [Milestones](#milestones).
 
 ## The approach
 
@@ -63,17 +63,30 @@ work grows fast with the length of the text.
   comes from the map rather than a search.
 - It finds one-word results first, then two words, and so on, and tries common words before rare
   ones, so the best results turn up early.
-- Limits on the number of words, the shortest word, the number of results and the time taken keep
-  long phrases in check, and the results say when the search stopped early.
-- It runs in a **Web Worker**, sends results as it finds them, and starts again on each
-  keystroke, so typing never freezes the page.
+- Limits on the number of words, the shortest word, the number of results and the steps taken
+  keep long phrases in check, and the results say when the search stopped early. The steps are
+  counted rather than timed, so a text always gives the same phrases.
+- **Near misses:** when no phrase uses every letter, the search leaves out one letter, then two,
+  then three, starting with the letters fewest words have: MELLON gives LEMON, with an L over.
+- The text's own words are left out unless asked, and words that are pieces of them (PASS and
+  WORD in PASSWORD) cost a phrase so much that it goes last.
+- It runs in a **Web Worker** and pauses every few milliseconds, so a newer search stops an older
+  one and typing never waits. Where there's no worker, as in tests, it runs on the page.
 
 ### Pronounceable scrambles
 
 A scramble that reads like a word (PENOSE MASE rather than EEAEOSMNPS for OPEN SESAME) looks
-better on a handout and can be read aloud. A letter-trigram model built from the word list scores
-how English a string looks. A pronounceable scramble is built letter by letter, each next letter
-chosen by the model from those left, and the best of several tries is kept.
+better on a handout and can be read aloud.
+
+- A **letter-trigram model**, built from the Standard list, knows how surprising each letter is
+  after the two before it. A word's start and end count as a letter too, since STR starts words and
+  NGT doesn't. Real words score 3 or 4 bits a letter, and jumbles 5 to 8.
+- **Long texts** are built a letter at a time, each chosen by how well it follows the letters
+  before it and steering clear of what the rules forbid. **Short ones** are ranked from every
+  arrangement.
+- The rules still come first, and after them, not giving a piece of the text away: SESAME
+  backwards reads very well, and is no puzzle at all. Only then does sayability count.
+- **Very** takes the most sayable; **somewhat** picks at random from the more sayable half.
 
 ## Output options
 
@@ -83,10 +96,10 @@ chosen by the model from those left, and the best of several tries is kept.
 | Punctuation | drop · keep in place (DON'T → TON'D) |
 | Digits, accents | scramble digits or drop them · fold é to E, or keep it |
 | Word shape | one run (EMASNEPOSE) · keep the words (NEPO EMASES) · keep the word lengths, mixing letters across words (SMEE PANOSE) · a number of words, or a pattern like 3-4-3 (ESA PEMS NOE) |
-| Real words | off · on. When no phrase uses every letter, near misses (real words and the letters left over) come next, then scrambles, with a note saying so |
+| Make | scrambles · real words · by hand. For real words, when no phrase uses every letter, near misses (real words and the letters left over) come next, then scrambles, with a note saying so |
 | Word list | Common · Standard · Large, plus your own words (the campaign's names); the most words; the shortest word; words to include or leave out; never the answer's own words |
 | Difficulty | presets over the constraints: **Easy** keeps the words and their first letters, **Medium** keeps the words but moves every letter, **Hard** runs them together, moves every letter and parts every pair of old neighbours |
-| Pronounceable | off · somewhat · reads like a word |
+| Pronounceable | off · somewhat · very |
 | Display | SWORD · S W O R D · tiles; how many; best first · A–Z · shuffled |
 
 A constraint that can't be met says so rather than searching forever. "Every letter moved" is
@@ -150,19 +163,22 @@ Real words come from the [English Speller Database](https://github.com/en-wl/wor
 formerly SCOWL) by Kevin Atkinson.
 
 - Its **sizes** rank words by how common they are: 35 is small, 50 medium, 60 medium-large and 70
-  large. Size 80 adds the unusual words that word games allow, which make poor clues. Common,
-  Standard and Large are sizes 35, 50 and 70.
-- It marks **offensive and vulgar words**, which are left out, along with Jabberwock's blocklist.
-  The blocklist checks scrambles too, since a random shuffle can spell a slur.
-- Proper nouns and abbreviations are left out. The campaign's own names come from the game
-  master's list.
+  large. Size 80 adds the unusual words that word games allow, which make poor clues. Common is
+  size 35 (38,612 words), Standard adds size 50 (61,037 in all), and Large adds 60 and 70 (124,697).
+- It marks **offensive and vulgar words**, which are left out. It marks only the worst, so
+  Jabberwock's blocklist filters the lists too, and checks scrambles, since a random shuffle can
+  spell a slur.
+- Proper nouns, abbreviations, Roman numerals, programmers' slang, and single letters but A and I
+  are left out. The campaign's own names come from the game master's list, **your words**, which
+  rank with the commonest.
 - Its words come mostly from 12dicts and ENABLE2K, both in the public domain, and the whole is
   under an MIT-style license whose notice goes with the lists. Lists up to size 80 need nothing
   more. SOURCES.md records the release, the export commands and the filters.
 - `scripts/build-words.ts` exports the lists and builds the letter model. ESDB's own tools need
   Python and SQLite, so the script is run by hand and its output committed, as Jabberwock's source
-  texts are.
-- Each size is its own file, fetched only when real words are switched on.
+  texts are. `npm run build-words -- --model` rebuilds just the model, from the lists already here.
+- Each size is its own chunk, about 60 to 140 KB compressed, fetched only when real words are first
+  used. The letter model, 12 KB compressed, comes with the page.
 
 ## Stack and hosting
 
@@ -188,8 +204,8 @@ Items marked *(planned)* don't exist yet.
 .github/workflows/               # deploy.yml (main → Pages), test.yml (other branches)
 index.html · vite.config.ts · package.json · .nvmrc · tsconfig.json
 docs/PLAN.md                     # this file
-SOURCES.md                       # the word list's release, filters and copyright notice (planned)
-scripts/build-words.ts           # ESDB → word lists and the letter model (planned)
+SOURCES.md                       # the word list's release, filters and copyright notice
+scripts/build-words.ts           # ESDB → word lists and the letter model
 public/                          # copied as-is (favicon)
 src/
   main.tsx · style.css           # app entry and styles
@@ -200,13 +216,14 @@ src/
     difficulty.ts                # letters in place, old neighbours, pieces of the text left whole
     format.ts                    # case, punctuation put back, spacing
     blocklist.ts                 # words a scramble never spells (Jabberwock's lists)
-    pronounce.ts                 # the letter-trigram model (planned)
-    words.ts · solver.ts · rank.ts  # word lists and your words; the search; scoring phrases (planned)
+    pronounce.ts                 # the letter-trigram model: scoring, and letters chosen one at a time
+    words.ts · solver.ts         # dictionaries filed by their letters; the search for phrases
+    phrases.ts · hand.ts         # own words, giveaways, words put in; what an anagram by hand has left
     hints.ts · puzzle.ts         # the hint ladder; puzzles and player links (planned)
     stele.ts                     # Open in Stele links (planned, from Jabberwock)
-  workers/solver.ts              # the solver, off the main thread (planned)
-  data/words/                    # word lists and the letter model (planned)
-  ui/                            # React components, settings and difficulties, and the page's state in its URL
+  workers/phrases.ts             # the phrase search, off the main thread
+  data/words/                    # the word lists by size, their loader, and the letter model
+  ui/                            # React components, settings, the phrase search's hook, and the page's state in its URL
 ```
 
 ## Milestones
@@ -235,7 +252,9 @@ With the words kept, each word is solved on its own; see
 - *Done when* OPEN SESAME comes out as a Medium scramble that keeps its words, in capitals, and a
   link brings back the same list.
 
-**Phase 2: Real words.**
+**Phase 2: Real words.** *(done. ESDB marks only the worst words, so the blocklist filters the
+lists too. Words that are pieces of the answer sink rather than vanish, since a game master may
+want them. Pronounceable scrambles put a piece of the text left whole last, however sayable.)*
 - The ESDB import (sizes, filters, the letter model) and SOURCES.md.
 - The solver in its worker, its options, and the fallback to near misses.
 - Pronounceable scrambles, and your own words.

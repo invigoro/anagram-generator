@@ -24,6 +24,8 @@ export interface Settings extends LetterOptions {
   allowOwn: boolean;
   /** The game master's own words, such as the campaign's names, as typed. */
   yourWords: string;
+  /** An anagram written by hand, as typed. */
+  hand: string;
   shape: Shape;
   /** For the 'count' shape. */
   wordCount: number;
@@ -68,6 +70,7 @@ export const DEFAULT_SETTINGS: Settings = {
   exclude: '',
   allowOwn: false,
   yourWords: '',
+  hand: '',
   ...DIFFICULTY_RULES.medium,
   wordCount: 3,
   pattern: '',

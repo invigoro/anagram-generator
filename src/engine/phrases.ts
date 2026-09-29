@@ -1,4 +1,4 @@
-import { solve, type Phrase, type Solution } from './solver';
+import { solve, wordsWithin, type Phrase, type Solution } from './solver';
 import type { Dictionary } from './words';
 
 /**
@@ -21,11 +21,15 @@ export interface PhraseRequest {
   allowOwn: boolean;
   limit: number;
   budget: number;
+  /** How many single words that fit in the letters to list too, for writing an anagram by hand. */
+  within?: number;
 }
 
 export interface PhraseResult extends Solution {
   /** A word to include whose letters aren't all in the text, if there's one. */
   missing: string | null;
+  /** Words that fit in the letters, when asked for. */
+  within: string[];
 }
 
 /**
@@ -82,16 +86,21 @@ export function* findPhrases(dict: Dictionary, request: PhraseRequest): Generato
   for (const word of request.include) {
     for (const letter of word) {
       const at = letters.indexOf(letter);
-      if (at < 0) return { phrases: [], nearMisses: [], exhausted: true, missing: word };
+      if (at < 0) return { phrases: [], nearMisses: [], exhausted: true, missing: word, within: [] };
       letters.splice(at, 1);
     }
   }
-  const words = request.maxWords - request.include.length;
-  if (letters.length === 0) return { phrases: [{ words: [...request.include], leftover: [], score: 0 }], nearMisses: [], exhausted: true, missing: null };
-  if (words <= 0) return { phrases: [], nearMisses: [{ words: [...request.include], leftover: letters, score: 0 }], exhausted: true, missing: null };
-
   const exclude = new Set(request.exclude);
   if (!request.allowOwn) for (const word of ownWords(request.textWords)) exclude.add(word);
+  const within = request.within ? wordsWithin(dict, letters, request.within, Math.max(2, request.minLength), exclude) : [];
+
+  const words = request.maxWords - request.include.length;
+  if (letters.length === 0) {
+    return { phrases: [{ words: [...request.include], leftover: [], score: 0 }], nearMisses: [], exhausted: true, missing: null, within };
+  }
+  if (words <= 0) {
+    return { phrases: [], nearMisses: [{ words: [...request.include], leftover: letters, score: 0 }], exhausted: true, missing: null, within };
+  }
   const solution = yield* solve(dict, {
     letters,
     maxWords: words,
@@ -107,5 +116,6 @@ export function* findPhrases(dict: Dictionary, request: PhraseRequest): Generato
     nearMisses: solution.nearMisses.map((phrase) => withIncluded(phrase, request.include)),
     exhausted: solution.exhausted,
     missing: null,
+    within,
   };
 }

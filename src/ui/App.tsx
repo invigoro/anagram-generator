@@ -5,7 +5,7 @@ import { scramble } from '../engine/scramble';
 import { Controls } from './Controls';
 import { Output } from './Output';
 import { DEFAULT_SETTINGS, rulesOf, type Settings } from './settings';
-import { searchFor, usePhrases } from './usePhrases';
+import { handSearchFor, searchFor, usePhrases } from './usePhrases';
 import { decodeState, encodeState, linkFor, type PageState } from './urlState';
 
 interface AppProps {
@@ -75,8 +75,13 @@ export default function App({ initial }: AppProps) {
   const read = useMemo(() => readText(shownText, { punctuation, digits, accents }), [shownText, punctuation, digits, accents]);
   const rules = useMemo(() => rulesOf(shownSettings), [shownSettings]);
   const result = useMemo(() => scramble(read, rules, { count, order }, mulberry32(seed)), [read, rules, count, order, seed]);
-  const search = useMemo(() => (shownSettings.mode === 'words' ? searchFor(shownText, shownSettings) : null), [shownText, shownSettings]);
+  const search = useMemo(() => {
+    if (shownSettings.mode === 'words') return searchFor(shownText, shownSettings);
+    if (shownSettings.mode === 'hand') return handSearchFor(shownText, shownSettings);
+    return null;
+  }, [shownText, shownSettings]);
   const phrases = usePhrases(search);
+  const change = (changes: Partial<Settings>) => setSettings((current) => ({ ...current, ...changes }));
 
   return (
     <div className="app">
@@ -90,7 +95,7 @@ export default function App({ initial }: AppProps) {
           text={text}
           onText={setText}
           settings={settings}
-          onSettings={(changes) => setSettings((current) => ({ ...current, ...changes }))}
+          onSettings={change}
           letterCount={read.letters.length}
           seed={seed}
           onReroll={() => setSeed(randomSeed())}
@@ -101,12 +106,15 @@ export default function App({ initial }: AppProps) {
 
       <main className="stage">
         <Output
+          typedText={shownSettings.mode === 'hand' ? text : shownText}
           typed={shownText.trim() !== ''}
           text={read}
           scramble={result}
           phrases={phrases}
           settings={shownSettings}
           seed={seed}
+          hand={settings.hand}
+          onHand={(hand) => change({ hand })}
           shareLink={() => linkFor({ text, seed, settings })}
         />
       </main>

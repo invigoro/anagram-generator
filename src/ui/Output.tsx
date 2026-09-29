@@ -1,13 +1,16 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { asText, formatWords, type LetterCase } from '../engine/format';
+import { lettersLeft } from '../engine/hand';
 import type { Text } from '../engine/letters';
 import type { Phrase } from '../engine/solver';
 import { mulberry32, shuffled } from '../engine/rng';
 import type { Scramble, Shortfall } from '../engine/scramble';
 import { isStrict, parsePattern, type Settings, type Spacing } from './settings';
-import type { Phrases } from './usePhrases';
+import { readForWords, type Phrases } from './usePhrases';
 
 interface OutputProps {
+  /** The text as typed. */
+  typedText: string;
   /** Whether anything has been typed, to tell an empty box from one without letters in it. */
   typed: boolean;
   text: Text;
@@ -15,6 +18,9 @@ interface OutputProps {
   phrases: Phrases;
   settings: Settings;
   seed: number;
+  /** The anagram being written by hand, as typed just now, and a way to change it. */
+  hand: string;
+  onHand: (hand: string) => void;
   /** A link that brings back this list. */
   shareLink: () => Promise<string>;
 }
@@ -30,7 +36,114 @@ const many = (n: number) => (n > 1_000_000 ? 'over a million' : n.toLocaleString
 
 export function Output(props: OutputProps) {
   if (props.settings.mode === 'words') return <PhraseOutput {...props} />;
+  if (props.settings.mode === 'hand') return <HandOutput {...props} />;
   return <ScrambleOutput {...props} />;
+}
+
+/** An anagram written by hand: the letters it has left to use, words that fit them, and ways to finish. */
+function HandOutput({ typedText, hand, settings, phrases, onHand, shareLink }: OutputProps) {
+  const id = useId();
+  const answer = readForWords(typedText);
+  if (answer.letters.length === 0) return <Message>Type a word or phrase, then write an anagram of it here.</Message>;
+  const attempt = readForWords(hand);
+  const { left, over } = lettersLeft(answer.letters, attempt.letters);
+  const done = left.length === 0 && over.length === 0;
+  const add = (words: string) => onHand(`${hand.trimEnd()}${hand.trim() ? ' ' : ''}${words.toLocaleLowerCase('en')}`);
+  const preview: Item = { words: formatWords(attempt.letters, attempt.words, [], settings.letterCase), spare: [] };
+  const { status, result, stale, retry } = phrases;
+  return (
+    <section className="output hand" aria-label="By hand">
+      <div className="field">
+        <label className="label" htmlFor={`${id}-hand`}>
+          Your anagram
+        </label>
+        <input
+          id={`${id}-hand`}
+          type="text"
+          value={hand}
+          placeholder="Write it here"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          onChange={(event) => onHand(event.target.value)}
+        />
+      </div>
+
+      <div className="bank" aria-live="polite">
+        {over.length > 0 ? (
+          <p className="problem">{`Too many: ${over.join(', ')}. The text doesn’t have ${over.length === 1 ? 'that letter' : 'those letters'} to spare.`}</p>
+        ) : done ? (
+          <p className="done">Uses every letter.</p>
+        ) : (
+          <>
+            <p>{left.length === 1 ? '1 letter left:' : `${left.length} letters left:`}</p>
+            <span className="tiles">
+              {left.map((letter, i) => (
+                <span className="tile" key={i}>
+                  {settings.letterCase === 'lower' ? letter.toLocaleLowerCase('en') : letter}
+                </span>
+              ))}
+            </span>
+          </>
+        )}
+      </div>
+
+      {attempt.letters.length > 0 && (
+        <div className="preview">
+          <div className="output-bar">
+            <p className="count">{done ? 'Your anagram' : 'So far'}</p>
+            <Actions copyText={itemText(preview, settings.spacing !== 'together')} shareLink={shareLink} />
+          </div>
+          <article className="page">
+            <Shown item={preview} spacing={settings.spacing} />
+          </article>
+        </div>
+      )}
+
+      {!done && over.length === 0 && (
+        <div className="suggestions" aria-busy={stale}>
+          {status === 'failed' && !stale ? (
+            <p className="message">
+              Couldn’t load the word list. Check your connection, and try again.{' '}
+              <button type="button" onClick={retry}>
+                Try again
+              </button>
+            </p>
+          ) : !result ? (
+            <p className="message">Looking for words…</p>
+          ) : result.phrases.length === 0 && result.within.length === 0 ? (
+            <p className="message">No words fit in what’s left.</p>
+          ) : (
+            <>
+              {result.phrases.length > 0 && (
+                <Suggestions title="To finish it" items={result.phrases.slice(0, 12).map((phrase) => phrase.words.join(' '))} onPick={add} />
+              )}
+              {result.within.length > 0 && <Suggestions title="Words in what’s left" items={result.within} onPick={add} />}
+            </>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Words or phrases to add to an anagram by hand, a click each. */
+function Suggestions({ title, items, onPick }: { title: string; items: readonly string[]; onPick: (words: string) => void }) {
+  const id = useId();
+  return (
+    <div className="suggestion-group" role="group" aria-labelledby={id}>
+      <h2 className="label" id={id}>
+        {title}
+      </h2>
+      <div className="suggestion-list">
+        {items.map((item) => (
+          <button type="button" key={item} className="suggestion" onClick={() => onPick(item)}>
+            {item}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function ScrambleOutput({ typed, text, scramble, settings, shareLink, note }: OutputProps & { note?: string }) {

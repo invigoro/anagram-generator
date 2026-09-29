@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { readText } from '../engine/letters';
+import { lettersLeft } from '../engine/hand';
+import { readText, type Text } from '../engine/letters';
 import { wordsIn, type PhraseResult } from '../engine/phrases';
 import { runSearch, type PhraseSearch, type SearchReply } from './phraseSearch';
 import type { Settings } from './settings';
@@ -8,13 +9,19 @@ import type { Settings } from './settings';
 const LIMIT = 2000;
 const BUDGET = 1_500_000;
 
+/** A text as the phrase search reads it. Words have no accents, and digits can't be in one, but they're kept to be left over. */
+export const readForWords = (typed: string) => readText(typed, { punctuation: 'drop', digits: 'scramble', accents: 'fold' });
+
+const wordsOf = (text: Text) => {
+  let start = 0;
+  return text.words.map((length) => text.letters.slice(start, (start += length)).join(''));
+};
+
 /** The search for phrases a page asks for, or null if the text has no letters to search. */
 export function searchFor(typed: string, settings: Settings): PhraseSearch | null {
-  // Words have no accents, and digits can't be in one, but they're kept to be left over.
-  const text = readText(typed, { punctuation: 'drop', digits: 'scramble', accents: 'fold' });
+  const text = readForWords(typed);
   if (text.letters.length === 0) return null;
-  let start = 0;
-  const textWords = text.words.map((length) => text.letters.slice(start, (start += length)).join(''));
+  const textWords = wordsOf(text);
   return {
     list: settings.wordList,
     yourWords: wordsIn(settings.yourWords),
@@ -28,6 +35,32 @@ export function searchFor(typed: string, settings: Settings): PhraseSearch | nul
       allowOwn: settings.allowOwn,
       limit: LIMIT,
       budget: BUDGET,
+    },
+  };
+}
+
+/**
+ * The search behind an anagram written by hand: words that fit in the letters it hasn't used, and
+ * phrases that would use them all. Null when there's nothing left to suggest for.
+ */
+export function handSearchFor(typed: string, settings: Settings): PhraseSearch | null {
+  const text = readForWords(typed);
+  const { left, over } = lettersLeft(text.letters, readForWords(settings.hand).letters);
+  if (left.length === 0 || over.length > 0) return null;
+  return {
+    list: settings.wordList,
+    yourWords: wordsIn(settings.yourWords),
+    request: {
+      letters: left,
+      textWords: wordsOf(text),
+      maxWords: 3,
+      minLength: 1,
+      include: [],
+      exclude: [],
+      allowOwn: settings.allowOwn,
+      limit: 200,
+      budget: BUDGET / 3,
+      within: 40,
     },
   };
 }

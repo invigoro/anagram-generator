@@ -9,6 +9,7 @@
   --accent: #8a3b1f;
   --accent-ink: #fffaf2;
   --tip: #f7ecd5;
+  --danger: #a3261b;
   --serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
@@ -27,6 +28,7 @@
     --accent: #e0885f;
     --accent-ink: #1b1714;
     --tip: #2e2620;
+    --danger: #f08a7e;
   }
 }
 
@@ -392,6 +394,78 @@ button:hover {
 .tile-word.spare .tile {
   border-style: dashed;
   box-shadow: none;
+}
+
+/* Writing an anagram by hand */
+.hand {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.hand .field input {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+}
+
+.bank {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  min-height: 2.2rem;
+}
+
+.bank p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.bank .tiles {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+}
+
+.bank .problem {
+  color: var(--danger);
+}
+
+.bank .done {
+  font-weight: 650;
+  color: var(--accent);
+}
+
+.preview .page {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  letter-spacing: 0.1em;
+}
+
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.suggestions[aria-busy='true'] {
+  opacity: 0.6;
+}
+
+.suggestion-group h2 {
+  margin: 0 0 0.4rem;
+}
+
+.suggestion-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.suggestion {
+  padding: 0.25rem 0.6rem;
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
 }
 
 /* What the rules couldn't manage */

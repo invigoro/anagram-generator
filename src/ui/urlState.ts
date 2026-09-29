@@ -78,6 +78,7 @@ export function sanitizeSettings(data: unknown): Partial<Settings> {
   }
   if (typeof input.allowOwn === 'boolean') settings.allowOwn = input.allowOwn;
   if (typeof input.yourWords === 'string' && input.yourWords.length <= 5000) settings.yourWords = input.yourWords;
+  if (typeof input.hand === 'string' && input.hand.length <= MAX_TEXT) settings.hand = input.hand;
   if (oneOf(input.shape, SHAPES)) settings.shape = input.shape;
   if (oneOf(input.wordCount, WORD_COUNTS)) settings.wordCount = input.wordCount;
   if (typeof input.pattern === 'string' && input.pattern.length <= 60) settings.pattern = input.pattern;

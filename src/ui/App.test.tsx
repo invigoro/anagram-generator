@@ -235,6 +235,45 @@ describe('Real words', () => {
   });
 });
 
+describe('By hand', () => {
+  async function byHand(text: string) {
+    const started = await start(text);
+    await started.user.click(screen.getByRole('radio', { name: 'By hand' }));
+    return { ...started, anagram: screen.getByRole('textbox', { name: 'Your anagram' }) };
+  }
+  const letters = (container: HTMLElement) => [...container.querySelectorAll('.bank .tile')].map((tile) => tile.textContent).join('');
+
+  it('shows the letters left to use, and words to finish with', async () => {
+    const { user, anagram, container } = await byHand('dormitory');
+    expect(letters(container)).toBe('DORMITORY');
+    await user.type(anagram, 'dirty');
+    expect(screen.getByText('4 letters left:')).toBeInTheDocument();
+    expect(letters(container)).toBe('OMOR');
+    const finish = await screen.findByRole('group', { name: 'To finish it' }, { timeout: 10_000 });
+    await user.click(within(finish).getByRole('button', { name: 'ROOM' }));
+    expect(anagram).toHaveValue('dirty room');
+    expect(screen.getByText('Uses every letter.')).toBeInTheDocument();
+    expect(screen.getByRole('article')).toHaveTextContent('DIRTY ROOM');
+    await user.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(await navigator.clipboard.readText()).toBe('DIRTY ROOM');
+  });
+
+  it('offers words that fit in what’s left', async () => {
+    const { user, anagram } = await byHand('dormitory');
+    await user.type(anagram, 'room');
+    const words = await screen.findByRole('group', { name: 'Words in what’s left' }, { timeout: 10_000 });
+    await user.click(within(words).getByRole('button', { name: 'DIRTY' }));
+    expect(anagram).toHaveValue('room dirty');
+    expect(screen.getByText('Uses every letter.')).toBeInTheDocument();
+  });
+
+  it('says when a letter is used more often than the text has it', async () => {
+    const { user, anagram } = await byHand('dormitory');
+    await user.type(anagram, 'dirtyy');
+    expect(screen.getByText('Too many: Y. The text doesn’t have that letter to spare.')).toBeInTheDocument();
+  });
+});
+
 describe('Links', () => {
   it('keeps the page in its URL, without spelling out the text', async () => {
     await start('Open sesame');

@@ -75,6 +75,15 @@ describe('findPhrases', () => {
     expect(texts(run(common, request('dormitory', { include: ['DIRTY', 'ROOM'] })).phrases)).toEqual(['DIRTY ROOM']);
   });
 
+  it('lists words that fit in the letters, longest first, when asked', () => {
+    const within = run(common, request('dormitory', { within: 20 })).within;
+    expect(within.length).toBe(20);
+    expect(within).toContain('DIRTY');
+    for (let i = 1; i < within.length; i++) expect(within[i].length).toBeLessThanOrEqual(within[i - 1].length);
+    expect(within).not.toContain('DORMITORY');
+    expect(run(common, request('dormitory')).within).toEqual([]);
+  });
+
   it('matches the search it wraps', () => {
     const wrapped = run(common, request('open sesame')).phrases;
     const bare = solveNow(common, {

@@ -192,6 +192,19 @@ export function* solve(dict: Dictionary, query: Query): Generator<void, Solution
   return { phrases, nearMisses, exhausted: !stopped };
 }
 
+/** Up to `limit` words that fit in some letters, of at least `minLength`, commonest and then longest first. */
+export function wordsWithin(dict: Dictionary, letters: readonly string[], limit: number, minLength: number, exclude: ReadonlySet<string>): string[] {
+  const counts = countsOf(letters.filter((letter) => PLAIN.test(letter)));
+  const found: number[] = [];
+  for (let word = 0; word < dict.words.length; word++) {
+    if (dict.words[word].length >= minLength && !exclude.has(dict.words[word]) && fitsIn(dict, word, counts)) found.push(word);
+  }
+  found.sort(
+    (a, b) => dict.ranks[a] - dict.ranks[b] || dict.words[b].length - dict.words[a].length || dict.words[a].localeCompare(dict.words[b], 'en'),
+  );
+  return found.slice(0, limit).map((word) => dict.words[word]);
+}
+
 /** Runs a search to the end, all at once. */
 export function solveNow(dict: Dictionary, query: Query): Solution {
   const search = solve(dict, query);

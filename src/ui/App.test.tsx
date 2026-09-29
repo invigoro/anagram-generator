@@ -29,7 +29,7 @@ const sorted = (text: string) => [...text].sort().join('');
 describe('App', () => {
   it('starts empty, asking for something to scramble', () => {
     render(<App />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Anagram' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Sator' })).toBeInTheDocument();
     expect(screen.getByText('Type a word or phrase to scramble it.')).toBeInTheDocument();
     expect(shown()).toEqual([]);
   });

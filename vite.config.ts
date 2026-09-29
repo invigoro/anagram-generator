@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  // Relative asset URLs, so the same build works at invigoro.github.io/anagram-generator/, on a
-  // custom domain later, or under `vite preview`.
+  // Relative asset URLs, so the same build works at sator.invigoro.me, at
+  // invigoro.github.io/anagram-generator/, or under `vite preview`.
   base: './',
   plugins: [react()],
   test: {

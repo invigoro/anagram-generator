@@ -18,7 +18,7 @@ export default function App() {
     <div className="app">
       <aside className="panel">
         <header className="brand">
-          <h1>Anagram</h1>
+          <h1>Sator</h1>
           <p>Scrambled words for tabletop puzzles</p>
         </header>
 

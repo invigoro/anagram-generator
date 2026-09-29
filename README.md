@@ -1,10 +1,11 @@
-# Anagram
+# Sator
 
 Anagrams for tabletop puzzles: scramble a password, a clue or a name, and give the players the
 letters to work back. It's growing into a tool for making and running those puzzles at the table;
-[docs/PLAN.md](docs/PLAN.md) has the plan.
+[docs/PLAN.md](docs/PLAN.md) has the plan. It's named after the Sator square (SATOR AREPO TENET
+OPERA ROTAS), the Roman word square whose letters rearrange into PATER NOSTER.
 
-**Live site:** https://invigoro.github.io/anagram-generator/
+**Live site:** https://sator.invigoro.me/
 
 ## Using it
 

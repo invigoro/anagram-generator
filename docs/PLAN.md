@@ -1,6 +1,6 @@
-# Anagram implementation plan
+# Sator implementation plan
 
-Anagram makes anagrams for tabletop puzzles. The game master picks the answer (the password for a
+Sator makes anagrams for tabletop puzzles. The game master picks the answer (the password for a
 door, a clue, a villain's real name) and the tool scrambles its letters, or rearranges them into
 other real words, for the players to work back. It does two jobs:
 
@@ -10,10 +10,9 @@ other real words, for the players to work back. It does two jobs:
   show it to the players or send them a page to solve it on, and put it on a handout, printed or
   carved in [Stele](https://stele.invigoro.me/).
 
-The site must be static, hosted on GitHub Pages, and everything runs in the browser. "Anagram" is
-a working name; see [Open questions](#open-questions).
+The site must be static, hosted on GitHub Pages, and everything runs in the browser.
 
-**Current phase:** Phase 0 is built and waiting to be deployed. See [Milestones](#milestones).
+**Current phase:** Phase 1. Phase 0 is done. See [Milestones](#milestones).
 
 ## The approach
 
@@ -154,8 +153,9 @@ formerly SCOWL) by Kevin Atkinson.
   [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) on every push to `main`. The
   workflow runs the tests and the type check before deploying. Pushes to other branches run the
   same checks without deploying ([`.github/workflows/test.yml`](../.github/workflows/test.yml)).
-  Vite uses a relative `base`, so the same build works at `invigoro.github.io/anagram-generator/`,
-  on a custom domain, or locally.
+  The site is served at `sator.invigoro.me`, set as the custom domain in the repository's Pages
+  settings. Vite uses a relative `base`, so the same build works there, at
+  `invigoro.github.io/anagram-generator/`, or locally.
 - **Node 24**, pinned in `.nvmrc` and used by CI. Anything from 22.12 up works locally.
 - **The engine is plain TypeScript** (`src/engine/`) with no React in it.
 - **Vitest** for the engine, and **Testing Library** for the UI. The solver runs inline where
@@ -193,7 +193,7 @@ src/
 
 ## Milestones
 
-**Phase 0: Setup and deploy.** *(built and tested; done once it's live)*
+**Phase 0: Setup and deploy.** *(done)*
 - Replace the jQuery page with Vite + React + TypeScript, set up as Jabberwock is.
 - The original idea, done properly:
   - fair, seeded shuffles, with a 🎲 Reroll
@@ -259,11 +259,8 @@ src/
 - **Letters and digits only, until Phase 1's options:** the original page shuffled spaces and
   punctuation in with the letters.
 - **English first.**
+- **The name:** Sator, after the Sator square (SATOR AREPO TENET OPERA ROTAS), the Roman word
+  square found at Pompeii, whose letters rearrange into PATER NOSTER twice with A and O left over.
 - Everything runs in the browser; nothing is sent anywhere.
 - The deploy workflow doesn't cache dependencies, following setup-node's guidance for workflows
   that publish.
-
-## Open questions
-
-- **The name and domain.** "Anagram" is the working name, at `invigoro.github.io/anagram-generator/`
-  for now. Stele and Jabberwock are at `stele.invigoro.me` and `jabberwock.invigoro.me`.

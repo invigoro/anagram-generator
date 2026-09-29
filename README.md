@@ -9,13 +9,33 @@ OPERA ROTAS), the Roman word square whose letters rearrange into PATER NOSTER.
 
 ## Using it
 
-- **Type a word or phrase.** Its letters and digits are scrambled into 50 different arrangements,
-  in capitals, as you type. Spaces and punctuation are left out.
-- **Short words get every arrangement there is:** CAT has five besides its own. No arrangement is
-  ever the text as typed.
-- 🎲 **Reroll** for new arrangements. The seed is shown beside it: the same seed and text always
-  give the same arrangements.
-- **Copy** copies the list, one arrangement to a line.
+- **Type a word or phrase,** and 50 scrambles of it appear as you type. None is ever the text as
+  typed, and none spells a slur or a swear word.
+- **Pick a difficulty:**
+  - **Easy** keeps the words, and their first letters.
+  - **Medium** keeps the words, and moves every letter.
+  - **Hard** runs the words together, moves every letter, and parts old neighbours: letters side by
+    side in a word never end up side by side again.
+- **Shape the words:** keep them, keep their lengths with the letters mixed across them, run them
+  together, or split them into a number of new words or a pattern of lengths like 3-4-3.
+- **Write them** in capitals, lowercase or title case, with the letters together, spaced out
+  (S W O R D) or on tiles.
+- **More options** has:
+  - each rule on its own: keep each word's first or last letter, move every letter, part old
+    neighbours
+  - punctuation kept in place (DON'T → TON'D), digits left out, and accents taken off (É becomes E)
+  - how many to show, and in what order. Best first puts at the top those that give away least: no
+    piece of the text left whole, even backwards, and few old neighbours or letters in place.
+- **When the letters can't do what's asked** (AAB can't move every letter), the page says so and
+  shows the closest.
+- **Short words get every arrangement there is** (CAT has five besides its own), and the count says
+  how many there are in all.
+- 🎲 **Reroll** for new arrangements. The seed is shown beside it: the same seed, text and settings
+  always give the same arrangements.
+- **Take it away:**
+  - **Copy** copies the list, one arrangement to a line.
+  - **Share link** copies a link that brings back the same list. The page's address always holds its
+    settings, compressed, so it never spells out a password during a screen share.
 
 It pairs with [Stele](https://stele.invigoro.me/), which carves or inks text onto a weathered
 object, and [Jabberwock](https://jabberwock.invigoro.me/), which writes text in made-up languages.

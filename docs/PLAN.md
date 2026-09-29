@@ -12,7 +12,7 @@ other real words, for the players to work back. It does two jobs:
 
 The site must be static, hosted on GitHub Pages, and everything runs in the browser.
 
-**Current phase:** Phase 1. Phase 0 is done. See [Milestones](#milestones).
+**Current phase:** Phase 2. Phases 0 and 1 are done. See [Milestones](#milestones).
 
 ## The approach
 
@@ -33,6 +33,23 @@ The engine (`src/engine/`, plain TypeScript with no React or DOM) works in four 
 Each result is kept as letters and word breaks and formatted last, so changing the case or the
 spacing never changes which anagrams you got. Randomness comes from seeds: the same text, settings
 and seed always give the same results, which is what makes tests and share links possible.
+
+### Scrambles that meet the rules
+
+- **Few arrangements** (up to 5,040, every arrangement of seven different letters) are all looked
+  at, so the list, and the count of those that fit, are exact.
+- **With the words kept,** the rules only look within a word. So each word is solved on its own,
+  and the best of each put together: a phrase of short words is exact however many arrangements it
+  has.
+- **Otherwise** a shuffle is repaired a swap at a time. A letter that breaks a rule trades places
+  in the best swap there is, and now and then in a worse one, to get out of a dead end.
+- The search has a budget, counted in work rather than time, so a seed always gives the same list
+  and a long text under strict rules can't freeze the page.
+- When the rules can't be met, the page says which one (AAB can't move every letter, since more
+  than half of it is A) and shows the closest.
+- **Best first** ranks by how much each arrangement gives away: the longest piece of the text left
+  whole, read either way (NEPO is plainly OPEN), then old neighbours side by side, then letters in
+  place.
 
 ### The solver
 
@@ -178,17 +195,18 @@ src/
   main.tsx · style.css           # app entry and styles
   engine/                        # the generator: no React, no DOM
     rng.ts                       # seeded PRNG, shuffling, string hashing
-    letters.ts                   # text → the letters to use (later, with the shape of its words)
-    scramble.ts                  # arrangements: counted, listed, or picked at random
-    format.ts                    # case, word pattern, punctuation, spacing (planned)
-    difficulty.ts                # letters in place, old neighbours, pieces of the answer (planned)
+    letters.ts                   # text → its letters, its words' lengths, and punctuation kept in place
+    scramble.ts                  # arrangements: counted, listed or shuffled for, in a shape, under the rules
+    difficulty.ts                # letters in place, old neighbours, pieces of the text left whole
+    format.ts                    # case, punctuation put back, spacing
+    blocklist.ts                 # words a scramble never spells (Jabberwock's lists)
     pronounce.ts                 # the letter-trigram model (planned)
     words.ts · solver.ts · rank.ts  # word lists and your words; the search; scoring phrases (planned)
     hints.ts · puzzle.ts         # the hint ladder; puzzles and player links (planned)
-    stele.ts · blocklist.ts      # Open in Stele links; words never shown (planned, from Jabberwock)
+    stele.ts                     # Open in Stele links (planned, from Jabberwock)
   workers/solver.ts              # the solver, off the main thread (planned)
   data/words/                    # word lists and the letter model (planned)
-  ui/                            # React components, and the page's state in its URL
+  ui/                            # React components, settings and difficulties, and the page's state in its URL
 ```
 
 ## Milestones
@@ -206,7 +224,10 @@ src/
 - *Done when* a push to `main` updates the site. Pages deploys from GitHub Actions (Settings →
   Pages → Source).
 
-**Phase 1: Output options.**
+**Phase 1: Output options.** *(done. The blocklist came forward from Phase 2, since GINGER has a
+slur among its arrangements. Best first counts a piece of the text read backwards as given away too.
+With the words kept, each word is solved on its own; see
+[Scrambles that meet the rules](#scrambles-that-meet-the-rules).)*
 - Everything in [Output options](#output-options) but real words and pronounceable scrambles,
   with the difficulty presets.
 - The page's settings in its URL, compressed (see

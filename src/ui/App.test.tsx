@@ -324,6 +324,50 @@ describe('Puzzles', () => {
     expect(within(card()).getByText('The clue doesn’t use the answer’s letters any more. Choose another from the list.')).toBeInTheDocument();
   });
 
+  it('shows the clue to the players, a hint at a time, and the answer only when asked twice', async () => {
+    const { user } = await start('Open sesame');
+    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.type(within(card()).getByRole('textbox', { name: 'Riddle' }), 'What opens the cave?');
+    await user.click(within(card()).getByRole('button', { name: 'Show players' }));
+    const showing = screen.getByRole('dialog', { name: 'The clue' });
+    expect(within(showing).getByText('What opens the cave?')).toBeInTheDocument();
+    expect(showing).not.toHaveTextContent(/open sesame/i);
+    await user.click(within(showing).getByRole('button', { name: 'Give a hint' }));
+    expect(within(showing).getAllByLabelText('a letter to find')).toHaveLength(10);
+    await user.click(within(showing).getByRole('button', { name: 'Another hint' }));
+    expect(within(showing).getByLabelText('Hint 2 of 9')).toHaveTextContent('OS');
+    await user.click(within(showing).getByRole('button', { name: 'Reveal the answer' }));
+    expect(showing).not.toHaveTextContent(/open sesame/i);
+    await user.click(within(showing).getByRole('button', { name: 'Sure? Reveal it' }));
+    expect(within(showing).getByRole('status')).toHaveTextContent('Open sesame');
+    expect(within(showing).getByRole('status')).toHaveTextContent('The way opens.');
+    await user.click(within(showing).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shuffles the clue afresh for the players, and puts it back', async () => {
+    const { user } = await start('Open sesame');
+    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.click(within(card()).getByRole('button', { name: 'Show players' }));
+    const showing = screen.getByRole('dialog', { name: 'The clue' });
+    const clue = () => within(showing).getByLabelText('Clue').textContent ?? '';
+    const before = clue();
+    await user.click(within(showing).getByRole('button', { name: 'Shuffle again' }));
+    expect(sorted(clue())).toBe(sorted(before));
+    await user.click(within(showing).getByRole('button', { name: 'Put back' }));
+    expect(clue()).toBe(before);
+  });
+
+  it('lists the hints for the game master, and hides them with the answer', async () => {
+    const { user } = await start('Open sesame');
+    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    expect(within(card()).getByText('9 hints, a letter more each time')).toBeInTheDocument();
+    // Queries collapse the page's spaces, so the gap between words is one here.
+    expect(within(card()).getByText('O P E N S E S A M _')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Hide it' }));
+    expect(within(card()).queryByText('9 hints, a letter more each time')).not.toBeInTheDocument();
+  });
+
   it('makes an anagram written by hand the clue', async () => {
     const { user } = await start('dormitory');
     await user.click(screen.getByRole('radio', { name: 'By hand' }));

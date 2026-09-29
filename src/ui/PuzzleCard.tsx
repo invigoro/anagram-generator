@@ -1,6 +1,8 @@
-import { useId } from 'react';
+import { useId, useMemo, useState } from 'react';
+import { hintLadder, hintText } from '../engine/hints';
 import { fits, otherAnswers, readout, type Puzzle, type Readout } from '../engine/puzzle';
 import type { Settings } from './settings';
+import { ShowPlayers } from './ShowPlayers';
 import { clueItem, Shown } from './Shown';
 import { readForWords, type Phrases } from './usePhrases';
 
@@ -31,6 +33,8 @@ export function PuzzleCard({ puzzle, answer, hidden, others, settings, onChange,
   const alternatives = fitting && others.result ? otherAnswers(answerText, others.result.phrases) : [];
   const accept = (text: string, yes: boolean) =>
     onChange({ ...puzzle, accepted: yes ? [...puzzle.accepted, text] : puzzle.accepted.filter((accepted) => accepted !== text) });
+  const ladder = useMemo(() => hintLadder(readForWords(answer)), [answer]);
+  const [showing, setShowing] = useState(false);
   return (
     <section className="puzzle" aria-labelledby={`${id}-title`}>
       <div className="puzzle-bar">
@@ -53,6 +57,60 @@ export function PuzzleCard({ puzzle, answer, hidden, others, settings, onChange,
         <p className="readout">{readoutText(readout(answerText, clue))}</p>
       ) : (
         <p className="problem">The clue doesn’t use the answer’s letters any more. Choose another from the list.</p>
+      )}
+
+      {fitting && (
+        <>
+          <div className="puzzle-fields">
+            <div className="field">
+              <label className="label" htmlFor={`${id}-riddle`}>
+                Riddle
+              </label>
+              <input
+                id={`${id}-riddle`}
+                type="text"
+                aria-describedby={`${id}-riddle-hint`}
+                placeholder="What opens the robbers’ cave?"
+                value={puzzle.riddle}
+                onChange={(event) => onChange({ ...puzzle, riddle: event.target.value })}
+              />
+              <small className="hint" id={`${id}-riddle-hint`}>
+                Told to the players with the clue.
+              </small>
+            </div>
+            <div className="field">
+              <label className="label" htmlFor={`${id}-success`}>
+                When they get it
+              </label>
+              <input
+                id={`${id}-success`}
+                type="text"
+                value={puzzle.success}
+                onChange={(event) => onChange({ ...puzzle, success: event.target.value })}
+              />
+            </div>
+          </div>
+
+          {ladder.length > 0 && !hidden && (
+            <details className="hints">
+              <summary>{ladder.length === 1 ? '1 hint' : `${ladder.length} hints, a letter more each time`}</summary>
+              <ol>
+                {ladder.map((hint, i) => (
+                  <li key={i}>
+                    <code>{hintText(hint)}</code>
+                  </li>
+                ))}
+              </ol>
+            </details>
+          )}
+
+          <div className="puzzle-actions">
+            <button type="button" onClick={() => setShowing(true)}>
+              Show players
+            </button>
+          </div>
+          {showing && <ShowPlayers puzzle={puzzle} answer={answer} onClose={() => setShowing(false)} />}
+        </>
       )}
 
       {fitting && (

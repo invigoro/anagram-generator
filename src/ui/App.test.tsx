@@ -26,51 +26,122 @@ function shown(): string[] {
 
 const sorted = (text: string) => [...text].sort().join('');
 
+/** Types the text into a fresh page. */
+async function start(text: string) {
+  const user = userEvent.setup();
+  const view = render(<App />);
+  await user.type(textBox(), text);
+  return { user, ...view };
+}
+
+async function moreOptions(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByText('More options'));
+}
+
 describe('App', () => {
   it('starts empty, asking for something to scramble', () => {
     render(<App />);
     expect(screen.getByRole('heading', { level: 1, name: 'Sator' })).toBeInTheDocument();
     expect(screen.getByText('Type a word or phrase to scramble it.')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Medium' })).toBeChecked();
     expect(shown()).toEqual([]);
   });
 
-  it('scrambles the letters as you type, in capitals, never as typed', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.type(textBox(), 'Open sesame!');
+  it('scrambles each word on its own as you type, moving every letter, in capitals', async () => {
+    await start('Open sesame!');
     const found = shown();
     expect(found).toHaveLength(50);
-    expect(new Set(found).size).toBe(50);
-    expect(found).not.toContain('OPENSESAME');
-    for (const arrangement of found) expect(sorted(arrangement)).toBe(sorted('OPENSESAME'));
-    expect(screen.getByText('50 of 302,399 other arrangements')).toBeInTheDocument();
+    expect(screen.getByText('50 of 261 arrangements that fit')).toBeInTheDocument();
+    for (const arrangement of found) {
+      expect(arrangement).toMatch(/^[A-Z]{4} [A-Z]{6}$/);
+      const [open, sesame] = arrangement.split(' ');
+      expect([sorted(open), sorted(sesame)]).toEqual([sorted('OPEN'), sorted('SESAME')]);
+      [...open + sesame].forEach((letter, i) => expect(letter).not.toBe('OPENSESAME'[i]));
+    }
   });
 
-  it('lists every arrangement of a short word', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.type(textBox(), 'cat');
+  it('lists every arrangement of a short word that fits, and more with fewer rules', async () => {
+    const { user } = await start('cat');
+    expect([...shown()].sort()).toEqual(['ATC', 'TCA']);
+    expect(screen.getByText('All 2 arrangements that fit')).toBeInTheDocument();
+    await moreOptions(user);
+    await user.click(screen.getByRole('checkbox', { name: 'Move every letter' }));
     expect([...shown()].sort()).toEqual(['ACT', 'ATC', 'CTA', 'TAC', 'TCA']);
     expect(screen.getByText('All 5 other arrangements')).toBeInTheDocument();
-    await user.type(textBox(), 's');
-    expect(shown()).toHaveLength(23);
-    expect(screen.getByText('All 23 other arrangements')).toBeInTheDocument();
+    // That's no longer one of the difficulties.
+    for (const name of ['Easy', 'Medium', 'Hard']) expect(screen.getByRole('radio', { name })).not.toBeChecked();
+    expect(screen.getByText('Your own mix, under More options.')).toBeInTheDocument();
   });
 
-  it('says when there’s nothing to rearrange', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.type(textBox(), 'aaa');
-    expect(screen.getByText('There’s no other way to arrange these letters.')).toBeInTheDocument();
-    await user.clear(textBox());
-    await user.type(textBox(), '?!');
-    expect(screen.getByText('There are no letters or digits to scramble.')).toBeInTheDocument();
+  it('sets the difficulty', async () => {
+    const { user } = await start('Open sesame');
+    await user.click(screen.getByRole('radio', { name: 'Easy' }));
+    for (const arrangement of shown()) expect(arrangement).toMatch(/^O[A-Z]{3} S[A-Z]{5}$/);
+    await user.click(screen.getByRole('radio', { name: 'Hard' }));
+    expect(screen.getByRole('combobox', { name: 'Words' })).toHaveValue('run');
+    expect(shown()).toHaveLength(50);
+    for (const arrangement of shown()) expect(arrangement).toMatch(/^[A-Z]{10}$/);
+  });
+
+  it('says when not every letter can move, and shows the closest', async () => {
+    await start('aab');
+    expect(screen.getByRole('note')).toHaveTextContent('Not every letter of AAB can move: more than half of them are A.');
+    expect(screen.getByText('The 2 closest arrangements')).toBeInTheDocument();
+  });
+
+  it('runs the words together, or splits them anew', async () => {
+    const { user } = await start('Open sesame');
+    const words = screen.getByRole('combobox', { name: 'Words' });
+    await user.selectOptions(words, 'run');
+    for (const arrangement of shown()) expect(arrangement).toMatch(/^[A-Z]{10}$/);
+    await user.selectOptions(words, 'count');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'How many words' }), '4');
+    for (const arrangement of shown()) expect(arrangement.split(' ')).toHaveLength(4);
+    await user.selectOptions(words, 'pattern');
+    expect(screen.getByText('Type the words’ lengths, like 3-4-3.')).toBeInTheDocument();
+    await user.type(screen.getByRole('textbox', { name: 'Word lengths' }), '3-4');
+    expect(screen.getByText('The pattern 3-4 makes 7 letters, but the text has 10.')).toBeInTheDocument();
+    await user.type(screen.getByRole('textbox', { name: 'Word lengths' }), '-3');
+    expect(shown()).toHaveLength(50);
+    for (const arrangement of shown()) expect(arrangement).toMatch(/^[A-Z]{3} [A-Z]{4} [A-Z]{3}$/);
+  });
+
+  it('writes them in lowercase or title case, spaced out or on tiles', async () => {
+    const { user, container } = await start('Open sesame');
+    await user.click(screen.getByRole('radio', { name: 'Lowercase' }));
+    for (const arrangement of shown()) expect(arrangement).toMatch(/^[a-z]{4} [a-z]{6}$/);
+    await user.click(screen.getByRole('radio', { name: 'Title case' }));
+    for (const arrangement of shown()) expect(arrangement).toMatch(/^[A-Z][a-z]{3} [A-Z][a-z]{5}$/);
+    await user.click(screen.getByRole('radio', { name: 'Letters spaced out' }));
+    for (const arrangement of shown()) expect(arrangement).toMatch(/^[A-Z]( [a-z]){3} {3}[A-Z]( [a-z]){5}$/);
+    await user.click(screen.getByRole('radio', { name: 'Tiles' }));
+    expect(container.querySelectorAll('.tile')).toHaveLength(500);
+  });
+
+  it('keeps punctuation in place, and leaves out digits or takes off accents', async () => {
+    const { user } = await start("Don't panic! 42 é");
+    await moreOptions(user);
+    await user.click(screen.getByRole('radio', { name: 'Keep in place' }));
+    for (const arrangement of shown()) expect(arrangement).toMatch(/^[A-Z]{3}'[A-Z] [A-Z]{5}! (42|24) É$/);
+    // Punctuation, then digits.
+    const [punctuation, digits] = screen.getAllByRole('radio', { name: 'Leave out' });
+    await user.click(punctuation);
+    await user.click(digits);
+    await user.click(screen.getByRole('radio', { name: 'Take off' }));
+    for (const arrangement of shown()) expect(arrangement).toMatch(/^[A-Z]{4} [A-Z]{5} E$/);
+  });
+
+  it('shows as many as asked, in the order asked', async () => {
+    const { user } = await start('Open sesame');
+    await moreOptions(user);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'How many' }), '10');
+    expect(shown()).toHaveLength(10);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Order' }), 'az');
+    expect(shown()).toEqual([...shown()].sort());
   });
 
   it('rerolls for new arrangements, and shows the seed', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.type(textBox(), 'password');
+    const { user } = await start('password');
     expect(screen.getByText('Seed 1')).toBeInTheDocument();
     const first = shown();
     await user.click(screen.getByRole('button', { name: 'Reroll' }));
@@ -80,18 +151,14 @@ describe('App', () => {
   });
 
   it('copies the arrangements, one to a line', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.type(textBox(), 'listen');
+    const { user } = await start('listen');
     await user.click(screen.getByRole('button', { name: 'Copy' }));
     expect(await navigator.clipboard.readText()).toBe(shown().join('\n'));
     expect(screen.getByRole('status')).toHaveTextContent('Copied');
   });
 
   it('says so when it can’t copy', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.type(textBox(), 'listen');
+    const { user } = await start('listen');
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('denied'));
     await user.click(screen.getByRole('button', { name: 'Copy' }));
     expect(screen.getByRole('status')).toHaveTextContent(/Couldn’t copy/);

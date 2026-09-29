@@ -1,18 +1,23 @@
-import { useMemo, useState } from 'react';
-import { lettersOf } from '../engine/letters';
+import { useDeferredValue, useMemo, useState } from 'react';
+import { readText } from '../engine/letters';
 import { mulberry32, randomSeed } from '../engine/rng';
 import { scramble } from '../engine/scramble';
 import { Controls } from './Controls';
 import { Output } from './Output';
-
-/** How many arrangements the list shows. */
-const COUNT = 50;
+import { DEFAULT_SETTINGS, rulesOf, type Settings } from './settings';
 
 export default function App() {
   const [text, setText] = useState('');
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [seed, setSeed] = useState(randomSeed);
-  const letters = useMemo(() => lettersOf(text), [text]);
-  const result = useMemo(() => scramble(letters, COUNT, mulberry32(seed)), [letters, seed]);
+
+  // A long text under strict rules takes a moment to scramble, so typing goes first.
+  const shownText = useDeferredValue(text);
+  const shownSettings = useDeferredValue(settings);
+  const { punctuation, digits, accents, count, order } = shownSettings;
+  const read = useMemo(() => readText(shownText, { punctuation, digits, accents }), [shownText, punctuation, digits, accents]);
+  const rules = useMemo(() => rulesOf(shownSettings), [shownSettings]);
+  const result = useMemo(() => scramble(read, rules, { count, order }, mulberry32(seed)), [read, rules, count, order, seed]);
 
   return (
     <div className="app">
@@ -22,13 +27,21 @@ export default function App() {
           <p>Scrambled words for tabletop puzzles</p>
         </header>
 
-        <Controls text={text} onText={setText} seed={seed} onReroll={() => setSeed(randomSeed())} />
+        <Controls
+          text={text}
+          onText={setText}
+          settings={settings}
+          onSettings={(changes) => setSettings((current) => ({ ...current, ...changes }))}
+          letterCount={read.letters.length}
+          seed={seed}
+          onReroll={() => setSeed(randomSeed())}
+        />
 
         <About className="about beside-text" />
       </aside>
 
       <main className="stage">
-        <Output typed={text.trim() !== ''} letters={letters} scramble={result} />
+        <Output typed={shownText.trim() !== ''} text={read} scramble={result} settings={shownSettings} />
       </main>
 
       <About className="about below-text" />

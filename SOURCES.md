@@ -27,6 +27,10 @@ from ENABLE2K, both in the public domain.
   and possessives. Single letters are left out except a and I. Words on the blocklist
   ([`src/engine/blocklist.ts`](src/engine/blocklist.ts)) are left out too, since ESDB marks only the
   worst words.
+- **The letter model** for pronounceable scrambles,
+  [`src/data/words/letters.ts`](src/data/words/letters.ts), is built by the same script from the
+  Standard list (sizes 35 and 50): how surprising each letter is after the two before it. It keeps
+  only those odds, no words. `npm run build-words -- --model` rebuilds it from the lists here.
 - **License:** ESDB's notice below, which each file repeats at its top. For lists no larger than
   size 80 in American English, no other notice applies.
 

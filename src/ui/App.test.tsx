@@ -383,6 +383,25 @@ describe('Puzzles', () => {
     expect(await isRight(player!, 'open sesame')).toBe(true);
   });
 
+  it('prints the clue as tiles to cut out, or as a card with the riddle', async () => {
+    const { user } = await start('Open sesame');
+    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.type(within(card()).getByRole('textbox', { name: 'Riddle' }), 'What opens the cave?');
+    const printed: string[] = [];
+    const print = vi.spyOn(window, 'print').mockImplementation(() => printed.push(document.querySelector('.print-sheet')?.textContent ?? ''));
+    await user.click(within(card()).getByRole('button', { name: 'Print tiles' }));
+    expect(document.querySelectorAll('.print-tile')).toHaveLength(10);
+    await user.click(within(card()).getByRole('button', { name: 'Print a card' }));
+    expect(print).toHaveBeenCalledTimes(2);
+    expect(printed[0]).toContain('Cut along the dashed lines.');
+    expect(printed[1]).toContain('What opens the cave?');
+    expect(printed[1]).not.toMatch(/open sesame/i);
+    // The sheet goes once the print dialog closes.
+    window.dispatchEvent(new Event('afterprint'));
+    await waitFor(() => expect(document.querySelector('.print-sheet')).toBeNull());
+    print.mockRestore();
+  });
+
   it('makes an anagram written by hand the clue', async () => {
     const { user } = await start('dormitory');
     await user.click(screen.getByRole('radio', { name: 'By hand' }));

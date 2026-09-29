@@ -1,8 +1,9 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { hintLadder, hintText } from '../engine/hints';
 import { fits, otherAnswers, readout, type Puzzle, type Readout } from '../engine/puzzle';
 import type { Settings } from './settings';
 import { playerLinkFor, playerPuzzleOf } from './playerLink';
+import { PrintSheet, type Printout } from './PrintSheet';
 import { ShowPlayers } from './ShowPlayers';
 import { clueItem, Shown } from './Shown';
 import { readForWords, type Phrases } from './usePhrases';
@@ -39,6 +40,10 @@ export function PuzzleCard({ puzzle, answer, hidden, others, settings, onChange,
   // The players' link, once made, until the puzzle changes and it no longer describes it.
   const [playerLink, setPlayerLink] = useState<string | null>(null);
   const [status, setStatus] = useState('');
+  // Each request to print draws the sheet afresh, and so prints again.
+  const [printing, setPrinting] = useState<{ kind: Printout; request: number } | null>(null);
+  const print = (kind: Printout) => setPrinting((current) => ({ kind, request: (current?.request ?? 0) + 1 }));
+  const printed = useCallback(() => setPrinting(null), []);
   useEffect(() => setPlayerLink(null), [puzzle, answer]);
   useEffect(() => {
     if (!status) return;
@@ -154,11 +159,18 @@ export function PuzzleCard({ puzzle, answer, hidden, others, settings, onChange,
                 Try it
               </a>
             )}
+            <button type="button" onClick={() => print('tiles')}>
+              Print tiles
+            </button>
+            <button type="button" onClick={() => print('card')}>
+              Print a card
+            </button>
             <span role="status" className="status">
               {status}
             </span>
           </div>
           {showing && <ShowPlayers puzzle={puzzle} answer={answer} onClose={() => setShowing(false)} />}
+          {printing && <PrintSheet key={printing.request} kind={printing.kind} clue={puzzle.clue} riddle={puzzle.riddle} onDone={printed} />}
         </>
       )}
 

@@ -812,6 +812,78 @@ button.quiet:hover {
   font-size: 1.2rem;
 }
 
+/* What prints: tiles to cut out, or a card. Never seen on screen, and alone on the page in print. */
+.print-sheet {
+  display: none;
+}
+
+@media print {
+  :root,
+  body {
+    background: #fff;
+  }
+
+  #root {
+    display: none !important;
+  }
+
+  .print-sheet {
+    display: block;
+    color: #000;
+    background: #fff;
+  }
+
+  @page {
+    margin: 12mm;
+  }
+}
+
+.print-note {
+  margin: 0 0 6mm;
+  font: 10pt system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #555;
+}
+
+.print-tiles {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.print-tile {
+  display: grid;
+  place-items: center;
+  width: 25mm;
+  height: 25mm;
+  /* Neighbours share their cutting lines. */
+  margin: 0 -0.3mm -0.3mm 0;
+  font-family: var(--serif);
+  font-size: 16mm;
+  border: 0.3mm dashed #777;
+  break-inside: avoid;
+}
+
+.print-card {
+  width: 150mm;
+  margin: 0 auto;
+  padding: 10mm 12mm;
+  font-family: var(--serif);
+  text-align: center;
+  border: 0.6mm solid #000;
+  border-radius: 3mm;
+}
+
+.print-riddle {
+  margin: 0 0 6mm;
+  font-size: 14pt;
+  font-style: italic;
+}
+
+.print-clue {
+  margin: 0;
+  font-size: 26pt;
+  letter-spacing: 0.2em;
+}
+
 /* Writing an anagram by hand */
 .hand {
   display: flex;

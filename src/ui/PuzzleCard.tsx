@@ -3,6 +3,7 @@ import { hintLadder, hintText } from '../engine/hints';
 import { fits, otherAnswers, readout, type Puzzle, type Readout } from '../engine/puzzle';
 import { isLettering, isRunes, isSteleMedium, LETTERINGS, letterChanges, RUNE_SCRIPTS, runesThatKeep, STELE_MEDIA, type SteleMedium } from '../engine/stele';
 import type { Settings } from './settings';
+import { Pieces } from './Pieces';
 import { playerLinkFor, playerPuzzleOf } from './playerLink';
 import { PrintSheet, type Printout } from './PrintSheet';
 import { ShowPlayers } from './ShowPlayers';
@@ -172,6 +173,7 @@ export function PuzzleCard({ puzzle, answer, hidden, others, settings, onChange,
             </span>
           </div>
           <InStele puzzle={puzzle} onChange={onChange} />
+          <Pieces puzzle={puzzle} onChange={onChange} />
           {showing && <ShowPlayers puzzle={puzzle} answer={answer} onClose={() => setShowing(false)} />}
           {printing && <PrintSheet key={printing.request} kind={printing.kind} clue={puzzle.clue} riddle={puzzle.riddle} onDone={printed} />}
         </>

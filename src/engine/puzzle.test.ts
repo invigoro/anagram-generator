@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readText, type LetterOptions } from './letters';
-import { comparable, fits, otherAnswers, readout } from './puzzle';
+import { comparable, fits, fragmentsOf, otherAnswers, readout } from './puzzle';
 
 const folded: LetterOptions = { punctuation: 'drop', digits: 'scramble', accents: 'fold' };
 const read = (text: string) => readText(text, folded);
@@ -44,5 +44,27 @@ describe('otherAnswers', () => {
 describe('comparable', () => {
   it('is a text’s letters only, in capitals', () => {
     expect(comparable(read('Open, sesame!'))).toBe('OPENSESAME');
+  });
+});
+
+describe('fragmentsOf', () => {
+  it('leaves the clue whole, or gives each word a piece', () => {
+    expect(fragmentsOf('NEPO EMASES', 1)).toEqual(['NEPO EMASES']);
+    expect(fragmentsOf(' NEPO  EMASES ', 'words')).toEqual(['NEPO', 'EMASES']);
+  });
+
+  it('shares the letters out as evenly as they go, in order, keeping the spaces inside a piece', () => {
+    expect(fragmentsOf('NEPO EMASES', 3)).toEqual(['NEPO', 'EMA', 'SES']);
+    expect(fragmentsOf('NEPO EMASES', 4)).toEqual(['NEP', 'O EM', 'AS', 'ES']);
+    expect(fragmentsOf('TSAHERT', 2)).toEqual(['TSAH', 'ERT']);
+  });
+
+  it('never makes more pieces than there are letters', () => {
+    expect(fragmentsOf('CAT', 5)).toEqual(['C', 'A', 'T']);
+    expect(fragmentsOf('', 3)).toEqual([]);
+  });
+
+  it('keeps a letter with its accent', () => {
+    expect(fragmentsOf('ÉTÉ', 3)).toEqual(['É', 'T', 'É']);
   });
 });

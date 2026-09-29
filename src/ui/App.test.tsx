@@ -425,6 +425,64 @@ describe('Puzzles', () => {
     );
   });
 
+  it('scatters the clue in pieces, each to copy, print or carve on its own', async () => {
+    const { user } = await start('Open sesame');
+    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    const clue = (await decodeState(window.location.hash))?.puzzle?.clue ?? '';
+    const split = within(card()).getByRole('combobox', { name: 'Split the clue' });
+    expect(split).toHaveValue('1');
+    expect(within(card()).queryByRole('list', { name: 'Pieces of the clue' })).not.toBeInTheDocument();
+
+    await user.selectOptions(split, 'A word to a piece (2)');
+    const pieces = () =>
+      within(within(card()).getByRole('list', { name: 'Pieces of the clue' }))
+        .getAllByRole('listitem')
+        .map((item) => [...item.querySelectorAll('.tile')].map((tile) => tile.textContent).join(''));
+    expect(pieces()).toEqual(clue.split(' '));
+
+    await user.selectOptions(split, '3 pieces');
+    expect(pieces()).toHaveLength(3);
+    expect(pieces().join('')).toBe(clue.replace(' ', ''));
+    await user.click(within(card()).getByRole('button', { name: 'Copy piece 2' }));
+    expect((await navigator.clipboard.readText()).replace(' ', '')).toBe(pieces()[1]);
+    expect(within(card()).getByText('Piece 2 copied')).toBeInTheDocument();
+    const stele = within(card()).getByRole('link', { name: 'Open piece 3 in Stele' });
+    await waitFor(() => expect(stele).toHaveAttribute('href'));
+    const settings = (await unpack(stele.getAttribute('href')!.split('#s=')[1])) as { blocks: { text: string }[] };
+    expect(settings.blocks[0].text.replace(' ', '')).toBe(`{{${pieces()[2]}}}`);
+
+    const printed: string[] = [];
+    const print = vi.spyOn(window, 'print').mockImplementation(() => printed.push(document.querySelector('.print-sheet')?.textContent ?? ''));
+    await user.click(within(card()).getByRole('button', { name: 'Print piece 1' }));
+    expect(printed[0].replace(' ', '')).toBe(pieces()[0]);
+    window.dispatchEvent(new Event('afterprint'));
+    print.mockRestore();
+    await waitFor(async () => expect((await decodeState(window.location.hash))?.puzzle?.split).toBe(3));
+  });
+
+  it('starts from a kind of puzzle, which sets the options and the puzzle’s', async () => {
+    const { user } = await start('Open sesame');
+    const kind = screen.getByRole('combobox', { name: 'Kind of puzzle' });
+    await user.selectOptions(kind, 'Scattered letters');
+    expect(screen.getByRole('radio', { name: 'Hard' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Tiles' })).toBeChecked();
+    expect(kind).toHaveAccessibleDescription(/split into three pieces/);
+    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    expect(within(card()).getByRole('textbox', { name: 'When they get it' })).toHaveValue('The last piece falls into place.');
+    expect(within(card()).getAllByRole('button', { name: /^Copy piece \d$/ })).toHaveLength(3);
+    expect(within(card()).getByRole('combobox', { name: 'Material' })).toHaveValue('parchment');
+
+    // Choosing another kind changes the open puzzle too.
+    await user.selectOptions(kind, 'Password door');
+    expect(screen.getByRole('radio', { name: 'Medium' })).toBeChecked();
+    expect(within(card()).getByRole('textbox', { name: 'When they get it' })).toHaveValue('The door grinds open.');
+    expect(within(card()).queryByRole('list', { name: 'Pieces of the clue' })).not.toBeInTheDocument();
+
+    // Once the options are changed, they're the game master's own.
+    await user.click(screen.getByRole('radio', { name: 'Tiles' }));
+    expect(kind).toHaveValue('');
+  });
+
   it('makes an anagram written by hand the clue', async () => {
     const { user } = await start('dormitory');
     await user.click(screen.getByRole('radio', { name: 'By hand' }));

@@ -5,7 +5,7 @@
  * out, say during a screen share.
  */
 import { WORD_LISTS } from '../data/words';
-import { NEW_PUZZLE, type Puzzle } from '../engine/puzzle';
+import { MOST_PIECES, NEW_PUZZLE, type Puzzle } from '../engine/puzzle';
 import { isLettering, isSteleMedium } from '../engine/stele';
 import { pack, unpack } from './packing';
 import { COUNTS, DEFAULT_SETTINGS, MODES, MOST_WORDS, ORDERS, SAYABILITIES, SHAPES, SHORTEST_WORDS, WORD_COUNTS, type Settings } from './settings';
@@ -91,6 +91,10 @@ export function sanitizePuzzle(data: unknown): Puzzle | null {
         ? input.playerHints
         : NEW_PUZZLE.playerHints,
     stele: sanitizeStele(input.stele),
+    split:
+      input.split === 'words' || (typeof input.split === 'number' && Number.isInteger(input.split) && input.split >= 1 && input.split <= MOST_PIECES)
+        ? input.split
+        : NEW_PUZZLE.split,
   };
 }
 

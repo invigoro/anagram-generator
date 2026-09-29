@@ -21,9 +21,16 @@ export interface Puzzle {
   playerHints: number;
   /** What Stele puts the clue on, and in what letters. */
   stele: SteleOptions;
+  /** How the clue is split, to hand out or hide in pieces: not at all (1), a word to a piece, or into so many. */
+  split: Split;
 }
 
-export const NEW_PUZZLE: Omit<Puzzle, 'clue'> = { accepted: [], riddle: '', success: 'The way opens.', playerHints: 2, stele: DEFAULT_STELE };
+export type Split = number | 'words';
+
+/** The most pieces a clue is split into. */
+export const MOST_PIECES = 12;
+
+export const NEW_PUZZLE: Omit<Puzzle, 'clue'> = { accepted: [], riddle: '', success: 'The way opens.', playerHints: 2, stele: DEFAULT_STELE, split: 1 };
 
 /** Whether a clue uses exactly the answer's letters. */
 export function fits(answer: Text, clue: Text): boolean {
@@ -77,6 +84,40 @@ export function otherAnswers(answer: Text, phrases: readonly Phrase[]): OtherAns
     .map((phrase) => ({ text: phrase.words.join(' '), sameLengths: phrase.words.map((word) => word.length).sort().join(',') === lengths }));
   // A stable sort keeps the search's order, best first, within each kind.
   return others.sort((a, b) => Number(b.sameLengths) - Number(a.sameLengths));
+}
+
+const characters = new Intl.Segmenter('en', { granularity: 'grapheme' });
+
+/**
+ * The clue in pieces, to hand out or hide around the place: a word to a piece, or its letters
+ * shared out as evenly as they go, in the clue's order. A piece keeps the spaces inside it, so
+ * each still shows where the clue's words part.
+ */
+export function fragmentsOf(clue: string, split: Split): string[] {
+  const words = clue.trim().split(/\s+/).filter((word) => word !== '');
+  if (split === 'words') return words;
+  const joined = words.join(' ');
+  const all = Array.from(characters.segment(joined), ({ segment }) => segment);
+  const letters = all.filter((character) => character !== ' ').length;
+  const count = Math.max(1, Math.min(split, letters));
+  const pieces: string[] = [];
+  let piece = '';
+  let size = 0;
+  for (const character of all) {
+    if (character === ' ') {
+      if (piece !== '') piece += ' ';
+      continue;
+    }
+    piece += character;
+    size += 1;
+    // The first pieces take the letters left over from sharing them out evenly.
+    if (size === Math.floor(letters / count) + (pieces.length < letters % count ? 1 : 0)) {
+      pieces.push(piece);
+      piece = '';
+      size = 0;
+    }
+  }
+  return pieces;
 }
 
 /** A guess or an answer as it's compared: its letters only, in capitals, accents off. */

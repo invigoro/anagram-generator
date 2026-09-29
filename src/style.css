@@ -637,6 +637,54 @@ button.quiet:hover {
   margin: 0;
 }
 
+/* The clue in pieces, to hand out or hide around the place */
+.pieces h3 {
+  margin: 0 0 0.35rem;
+}
+
+.pieces .field {
+  align-items: flex-start;
+}
+
+.piece-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.5rem;
+  padding-left: 1.75rem;
+}
+
+.piece-list li {
+  padding-left: 0.25rem;
+}
+
+.piece-list li::marker {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.piece-list li > .tiles {
+  vertical-align: middle;
+}
+
+.piece-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-left: 0.75rem;
+  vertical-align: middle;
+}
+
+.piece-actions button,
+.piece-actions a.button {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.pieces .hint {
+  margin: 0;
+}
+
 /* A letter a hint doesn't give yet */
 .tile.blank {
   background: var(--page);

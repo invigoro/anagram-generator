@@ -68,13 +68,14 @@ describe('encodeState and decodeState', () => {
       success: 'The rock rolls aside.',
       playerHints: 3,
       stele: { medium: 'bronze', lettering: 'elder-futhark' },
+      split: 'words',
     };
     const hash = await encodeState({ text: 'Open sesame', seed: 1, settings: DEFAULT_SETTINGS, puzzle });
     expect((await decodeState(hash))?.puzzle).toEqual(puzzle);
     expect(await encodeState({ text: '', seed: 1, settings: DEFAULT_SETTINGS, puzzle })).not.toBe('');
     const doctored = await pack({ v: 1, text: 'x', seed: 1, puzzle: { clue: 42, accepted: 'all' } });
     expect((await decodeState(doctored))?.puzzle).toBeUndefined();
-    const partly = await pack({ v: 1, text: 'x', seed: 1, puzzle: { clue: 'X', accepted: ['A', 7], riddle: 'r'.repeat(900), stele: { medium: 'lava', lettering: 'roman' } } });
+    const partly = await pack({ v: 1, text: 'x', seed: 1, puzzle: { clue: 'X', accepted: ['A', 7], riddle: 'r'.repeat(900), stele: { medium: 'lava', lettering: 'roman' }, split: 99 } });
     expect((await decodeState(partly))?.puzzle).toEqual({
       clue: 'X',
       accepted: ['A'],
@@ -82,6 +83,7 @@ describe('encodeState and decodeState', () => {
       success: 'The way opens.',
       playerHints: 2,
       stele: { medium: 'granite', lettering: 'roman' },
+      split: 1,
     });
   });
 

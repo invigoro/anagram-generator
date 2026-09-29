@@ -7,6 +7,7 @@ import { mulberry32, randomSeed } from '../engine/rng';
 import { scramble, type Scramble } from '../engine/scramble';
 import { Controls } from './Controls';
 import { Output } from './Output';
+import { isPreset, type Preset } from './presets';
 import { PuzzleCard } from './PuzzleCard';
 import { DEFAULT_SETTINGS, rulesOf, type Settings } from './settings';
 import { handSearchFor, othersSearchFor, searchFor, usePhrases } from './usePhrases';
@@ -59,6 +60,9 @@ export default function App({ initial }: AppProps) {
   const [seed, setSeed] = useState(() => initial?.seed ?? randomSeed());
   const [puzzle, setPuzzle] = useState<Puzzle | null>(initial?.puzzle ?? null);
   const [hidden, setHidden] = useState(() => saved(HIDDEN) === 'yes');
+  // The kind of puzzle last chosen, which is in force while the settings are still its.
+  const [chosen, setChosen] = useState<Preset | null>(null);
+  const preset = chosen && isPreset(chosen, settings) ? chosen : null;
 
   useEffect(() => save(YOUR_WORDS, settings.yourWords), [settings.yourWords]);
   useEffect(() => save(HIDDEN, hidden ? 'yes' : 'no'), [hidden]);
@@ -125,7 +129,12 @@ export default function App({ initial }: AppProps) {
     [puzzle !== null, shownText, wordList, yourWords],
   );
   const others = usePhrases(othersSearch, 'others');
-  const useAsClue = (clue: string) => setPuzzle((current) => ({ ...NEW_PUZZLE, ...current, clue }));
+  const useAsClue = (clue: string) => setPuzzle((current) => ({ ...NEW_PUZZLE, ...preset?.puzzle, ...current, clue }));
+  const choosePreset = (next: Preset) => {
+    setChosen(next);
+    setSettings((current) => ({ ...current, ...next.settings }));
+    setPuzzle((current) => current && { ...current, ...next.puzzle });
+  };
 
   return (
     <div className="app">
@@ -145,6 +154,8 @@ export default function App({ initial }: AppProps) {
           onHidden={setHidden}
           seed={seed}
           onReroll={() => setSeed(randomSeed())}
+          preset={preset}
+          onPreset={choosePreset}
         />
 
         <About className="about beside-text" />

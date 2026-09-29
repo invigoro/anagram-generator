@@ -2,6 +2,7 @@ import { useId, type ReactNode } from 'react';
 import { WORD_LISTS, type WordList } from '../data/words';
 import type { LetterCase } from '../engine/format';
 import type { Order, Shape } from '../engine/scramble';
+import { PRESETS, type Preset } from './presets';
 import {
   COUNTS,
   DIFFICULTIES,
@@ -86,9 +87,12 @@ interface ControlsProps {
   onHidden: (hidden: boolean) => void;
   seed: number;
   onReroll: () => void;
+  /** The kind of puzzle chosen, while the settings are still its. */
+  preset: Preset | null;
+  onPreset: (preset: Preset) => void;
 }
 
-export function Controls({ text, onText, settings, onSettings, letterCount, hidden, onHidden, seed, onReroll }: ControlsProps) {
+export function Controls({ text, onText, settings, onSettings, letterCount, hidden, onHidden, seed, onReroll, preset, onPreset }: ControlsProps) {
   const id = useId();
   const { mode } = settings;
   return (
@@ -115,6 +119,33 @@ export function Controls({ text, onText, settings, onSettings, letterCount, hidd
           spellCheck={false}
           onChange={(event) => onText(event.target.value)}
         />
+      </div>
+
+      <div className="field">
+        <label className="label" htmlFor={`${id}-preset`}>
+          Kind of puzzle
+        </label>
+        <select
+          id={`${id}-preset`}
+          value={preset?.name ?? ''}
+          aria-describedby={`${id}-preset-hint`}
+          onChange={(event) => {
+            const chosen = PRESETS.find((option) => option.name === event.target.value);
+            if (chosen) onPreset(chosen);
+          }}
+        >
+          <option value="" disabled>
+            Choose one…
+          </option>
+          {PRESETS.map((option) => (
+            <option key={option.name} value={option.name}>
+              {option.name}
+            </option>
+          ))}
+        </select>
+        <small className="hint" id={`${id}-preset-hint`}>
+          {preset ? preset.hint : 'Sets the options below, and the puzzle’s, for a common kind of puzzle.'}
+        </small>
       </div>
 
       <Choice

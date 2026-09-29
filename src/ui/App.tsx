@@ -10,6 +10,7 @@ import { Output } from './Output';
 import { PuzzleCard } from './PuzzleCard';
 import { DEFAULT_SETTINGS, rulesOf, type Settings } from './settings';
 import { handSearchFor, othersSearchFor, searchFor, usePhrases } from './usePhrases';
+import { PLAYER_PREFIX } from './playerLink';
 import { decodeState, encodeState, linkFor, type PageState } from './urlState';
 
 interface AppProps {
@@ -77,6 +78,7 @@ export default function App({ initial }: AppProps) {
   // A link pasted into the address bar of an open page changes only the hash.
   useEffect(() => {
     const apply = async () => {
+      if (window.location.hash.startsWith(PLAYER_PREFIX)) return window.location.reload();
       const state = await decodeState(window.location.hash);
       if (!state) return;
       setText(state.text ?? '');

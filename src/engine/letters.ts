@@ -16,6 +16,15 @@ export interface LetterOptions {
 export const DEFAULT_LETTER_OPTIONS: LetterOptions = { punctuation: 'drop', digits: 'scramble', accents: 'keep' };
 
 /**
+ * How texts are read to compare them, as word lists and answers are: without punctuation or
+ * accents. Digits are kept, since an answer can have them.
+ */
+export const FOLDED: LetterOptions = { punctuation: 'drop', digits: 'scramble', accents: 'fold' };
+
+/** A text read the way texts are compared (see FOLDED). */
+export const readFolded = (text: string): Text => readText(text, FOLDED);
+
+/**
  * Punctuation kept in place, after `at` of the text's letters. Where that falls between two words,
  * `joins` says which it goes with: the word before it (a comma), the word after it (an opening
  * bracket), or neither (a dash with spaces either side).

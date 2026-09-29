@@ -1,7 +1,8 @@
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { hintLadder, hintText } from '../engine/hints';
 import { fits, otherAnswers, readout, type Puzzle, type Readout } from '../engine/puzzle';
 import type { Settings } from './settings';
+import { playerLinkFor, playerPuzzleOf } from './playerLink';
 import { ShowPlayers } from './ShowPlayers';
 import { clueItem, Shown } from './Shown';
 import { readForWords, type Phrases } from './usePhrases';
@@ -35,6 +36,26 @@ export function PuzzleCard({ puzzle, answer, hidden, others, settings, onChange,
     onChange({ ...puzzle, accepted: yes ? [...puzzle.accepted, text] : puzzle.accepted.filter((accepted) => accepted !== text) });
   const ladder = useMemo(() => hintLadder(readForWords(answer)), [answer]);
   const [showing, setShowing] = useState(false);
+  // The players' link, once made, until the puzzle changes and it no longer describes it.
+  const [playerLink, setPlayerLink] = useState<string | null>(null);
+  const [status, setStatus] = useState('');
+  useEffect(() => setPlayerLink(null), [puzzle, answer]);
+  useEffect(() => {
+    if (!status) return;
+    const timer = setTimeout(() => setStatus(''), 2500);
+    return () => clearTimeout(timer);
+  }, [status]);
+
+  async function copyPlayerLink() {
+    const link = await playerLinkFor(await playerPuzzleOf(puzzle, answer));
+    setPlayerLink(link);
+    try {
+      await navigator.clipboard.writeText(link);
+      setStatus('Player link copied');
+    } catch {
+      setStatus('Couldn’t copy it: open it with Try it, and copy its address.');
+    }
+  }
   return (
     <section className="puzzle" aria-labelledby={`${id}-title`}>
       <div className="puzzle-bar">
@@ -104,10 +125,38 @@ export function PuzzleCard({ puzzle, answer, hidden, others, settings, onChange,
             </details>
           )}
 
+          <div className="field">
+            <label className="label" htmlFor={`${id}-player-hints`}>
+              Hints on the players’ page
+            </label>
+            <select
+              id={`${id}-player-hints`}
+              value={Math.min(puzzle.playerHints, ladder.length)}
+              onChange={(event) => onChange({ ...puzzle, playerHints: Number(event.target.value) })}
+            >
+              {Array.from({ length: ladder.length + 1 }, (_, count) => (
+                <option key={count} value={count}>
+                  {count === 0 ? 'None' : count === 1 ? '1: the word lengths' : count === 2 ? '2: and the first letters' : `${count}`}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="puzzle-actions">
             <button type="button" onClick={() => setShowing(true)}>
               Show players
             </button>
+            <button type="button" onClick={copyPlayerLink}>
+              Player link
+            </button>
+            {playerLink && (
+              <a className="button" href={playerLink} target="_blank" rel="noopener">
+                Try it
+              </a>
+            )}
+            <span role="status" className="status">
+              {status}
+            </span>
           </div>
           {showing && <ShowPlayers puzzle={puzzle} answer={answer} onClose={() => setShowing(false)} />}
         </>

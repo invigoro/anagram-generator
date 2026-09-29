@@ -60,14 +60,14 @@ describe('encodeState and decodeState', () => {
   });
 
   it('bring back the puzzle being made, checked', async () => {
-    const puzzle = { clue: 'NEPO EMASES', accepted: ['PEON SESAME'], riddle: 'What opens the cave?', success: 'The rock rolls aside.' };
+    const puzzle = { clue: 'NEPO EMASES', accepted: ['PEON SESAME'], riddle: 'What opens the cave?', success: 'The rock rolls aside.', playerHints: 3 };
     const hash = await encodeState({ text: 'Open sesame', seed: 1, settings: DEFAULT_SETTINGS, puzzle });
     expect((await decodeState(hash))?.puzzle).toEqual(puzzle);
     expect(await encodeState({ text: '', seed: 1, settings: DEFAULT_SETTINGS, puzzle })).not.toBe('');
     const doctored = await pack({ v: 1, text: 'x', seed: 1, puzzle: { clue: 42, accepted: 'all' } });
     expect((await decodeState(doctored))?.puzzle).toBeUndefined();
     const partly = await pack({ v: 1, text: 'x', seed: 1, puzzle: { clue: 'X', accepted: ['A', 7], riddle: 'r'.repeat(900) } });
-    expect((await decodeState(partly))?.puzzle).toEqual({ clue: 'X', accepted: ['A'], riddle: '', success: 'The way opens.' });
+    expect((await decodeState(partly))?.puzzle).toEqual({ clue: 'X', accepted: ['A'], riddle: '', success: 'The way opens.', playerHints: 2 });
   });
 
   it('keep at most so much text', async () => {

@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
+import { isRight, readPlayerLink } from './playerLink';
 import { DEFAULT_SETTINGS } from './settings';
 import { decodeState, encodeState } from './urlState';
 
@@ -366,6 +367,20 @@ describe('Puzzles', () => {
     expect(within(card()).getByText('O P E N S E S A M _')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Hide it' }));
     expect(within(card()).queryByText('9 hints, a letter more each time')).not.toBeInTheDocument();
+  });
+
+  it('copies a link for the players that checks answers without holding them', async () => {
+    const { user } = await start('Open sesame');
+    await user.click(screen.getAllByRole('button', { name: /^Use .* as the clue$/ })[0]);
+    await user.selectOptions(within(card()).getByRole('combobox', { name: 'Hints on the players’ page' }), '1');
+    await user.click(within(card()).getByRole('button', { name: 'Player link' }));
+    expect(await within(card()).findByRole('link', { name: 'Try it' })).toBeInTheDocument();
+    expect(within(card()).getByRole('status')).toHaveTextContent('Player link copied');
+    const link = new URL(await navigator.clipboard.readText());
+    expect(link.hash.startsWith('#p=')).toBe(true);
+    const player = await readPlayerLink(link.hash);
+    expect(player?.hints).toHaveLength(1);
+    expect(await isRight(player!, 'open sesame')).toBe(true);
   });
 
   it('makes an anagram written by hand the clue', async () => {

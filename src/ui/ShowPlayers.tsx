@@ -1,9 +1,9 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { hintLadder, type Hint } from '../engine/hints';
+import { hintLadder } from '../engine/hints';
+import { readFolded } from '../engine/letters';
 import type { Puzzle } from '../engine/puzzle';
 import { mulberry32, randomSeed, shuffled } from '../engine/rng';
-import { clueItem, Shown, type Item } from './Shown';
-import { readForWords } from './usePhrases';
+import { clueItem, HintTiles, Shown, type Item } from './Shown';
 
 /** Type sizes for the table, in rem. */
 const SIZES = [1.5, 2, 2.6, 3.3, 4.2] as const;
@@ -26,7 +26,7 @@ export function ShowPlayers({ puzzle, answer, onClose }: ShowPlayersProps) {
   const [hints, setHints] = useState(0);
   const [reshuffled, setReshuffled] = useState<Item | null>(null);
   const [reveal, setReveal] = useState<'no' | 'sure' | 'yes'>('no');
-  const ladder = useMemo(() => hintLadder(readForWords(answer)), [answer]);
+  const ladder = useMemo(() => hintLadder(readFolded(answer)), [answer]);
 
   useEffect(() => {
     const element = dialog.current;
@@ -95,22 +95,5 @@ export function ShowPlayers({ puzzle, answer, onClose }: ShowPlayersProps) {
         )}
       </div>
     </dialog>
-  );
-}
-
-/** A hint as tiles: the letters given, and blanks for the rest. */
-export function HintTiles({ hint }: { hint: Hint }) {
-  return (
-    <span className="tiles">
-      {hint.map((word, w) => (
-        <span className="tile-word" key={w}>
-          {word.map((letter, i) => (
-            <span className={letter ? 'tile' : 'tile blank'} key={i} aria-label={letter ?? 'a letter to find'}>
-              {letter ?? ''}
-            </span>
-          ))}
-        </span>
-      ))}
-    </span>
   );
 }

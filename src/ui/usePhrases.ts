@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { lettersLeft } from '../engine/hand';
-import { readText, type Text } from '../engine/letters';
+import { readFolded, type Text } from '../engine/letters';
 import { wordsIn, type PhraseResult } from '../engine/phrases';
 import { runSearch, type PhraseSearch, type SearchReply } from './phraseSearch';
 import type { Settings } from './settings';
@@ -10,7 +10,7 @@ const LIMIT = 2000;
 const BUDGET = 1_500_000;
 
 /** A text as the phrase search reads it. Words have no accents, and digits can't be in one, but they're kept to be left over. */
-export const readForWords = (typed: string) => readText(typed, { punctuation: 'drop', digits: 'scramble', accents: 'fold' });
+export const readForWords = readFolded;
 
 const wordsOf = (text: Text) => {
   let start = 0;

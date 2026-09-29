@@ -1,4 +1,5 @@
 import { asText } from '../engine/format';
+import type { Hint } from '../engine/hints';
 import type { Spacing } from './settings';
 
 /** One line of a list: its words, as characters, and any letters left over. */
@@ -59,6 +60,23 @@ export function Shown({ item, spacing }: { item: Item; spacing: Spacing }) {
           ))}
         </span>
       )}
+    </span>
+  );
+}
+
+/** A hint as tiles: the letters given, and blanks for the rest. */
+export function HintTiles({ hint }: { hint: Hint }) {
+  return (
+    <span className="tiles">
+      {hint.map((word, w) => (
+        <span className="tile-word" key={w}>
+          {word.map((letter, i) => (
+            <span className={letter ? 'tile' : 'tile blank'} key={i} aria-label={letter ?? 'a letter to find'}>
+              {letter ?? ''}
+            </span>
+          ))}
+        </span>
+      ))}
     </span>
   );
 }

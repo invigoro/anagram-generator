@@ -16,9 +16,11 @@ export interface Puzzle {
   riddle: string;
   /** What the players see when they get it right. */
   success: string;
+  /** How many of the hints a player link lets players take. */
+  playerHints: number;
 }
 
-export const NEW_PUZZLE: Omit<Puzzle, 'clue'> = { accepted: [], riddle: '', success: 'The way opens.' };
+export const NEW_PUZZLE: Omit<Puzzle, 'clue'> = { accepted: [], riddle: '', success: 'The way opens.', playerHints: 2 };
 
 /** Whether a clue uses exactly the answer's letters. */
 export function fits(answer: Text, clue: Text): boolean {

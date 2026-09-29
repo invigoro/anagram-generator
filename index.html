@@ -1,48 +1,18 @@
-<html>
-
-<head>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-</head>
-
-<body>
-    <div>
-        <input type="text" placeholder="Text to jumble" id="base-text" />
-        <div id="output">
-        </div>
-    </div>
-    <script>
-
-        rFact = (num) => {
-                if (num === 0) { return 1; }
-                else { return num * rFact(num - 1); }
-            }
-        $(document).ready(function () {
-
-
-
-
-            $("#base-text").on("change", (input) => {
-                let val = $("#base-text").val().toUpperCase();
-                let output = new Set();
-                let guesses = 0;
-                var output_count = 50;
-                if(val.length == 0) {
-                    output_count = 0;
-                }
-                else if(val.length < 5) {
-                    output_count = rFact(val.length);
-                }
-
-                while (output.size < output_count && guesses <= output_count * 2) {
-                    output.add(val.split('').sort(function () { return 0.5 - Math.random() }).join(''));
-                    guesses++;
-                }
-                output = Array.from(output).map((val) => `<li>${val}</li>`).join('');
-                $("#output").html(`<ol>${output}</ol>`);
-            })
-
-        });
-    </script>
-</body>
-
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Anagrams for tabletop puzzles: scrambled passwords, clues and names for players to work back."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Anagram</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>Anagram needs JavaScript to run.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

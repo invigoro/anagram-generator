@@ -1,0 +1,289 @@
+:root {
+  color-scheme: light dark;
+  --paper: #f4eee2;
+  --page: #fffcf5;
+  --ink: #2b211b;
+  --muted: #6e5d4e;
+  --line: #ddd0b8;
+  --hover: #ebe2d0;
+  --accent: #8a3b1f;
+  --accent-ink: #fffaf2;
+  --serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #1b1714;
+    --page: #25201b;
+    --ink: #eee4d3;
+    --muted: #b3a38f;
+    --line: #463b32;
+    --hover: #322a24;
+    --accent: #e0885f;
+    --accent-ink: #1b1714;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: var(--accent);
+}
+
+/* Layout: controls beside the arrangements, stacked on narrow screens. */
+
+.app {
+  display: grid;
+  grid-template-columns: 19rem minmax(0, 1fr);
+  gap: 2.5rem;
+  align-items: start;
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+}
+
+.panel {
+  position: sticky;
+  top: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (max-width: 52rem) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+    padding: 1.25rem 1rem 2.5rem;
+  }
+
+  .panel {
+    position: static;
+  }
+}
+
+.brand h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.9rem;
+  line-height: 1.15;
+}
+
+.brand p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+}
+
+/* Controls */
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.label {
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hint {
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+input,
+button {
+  font: inherit;
+  color: var(--ink);
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+input {
+  padding: 0.4rem 0.55rem;
+}
+
+button {
+  padding: 0.45rem 0.95rem;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--hover);
+}
+
+:is(button, input, a):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.reroll-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.reroll {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.reroll:hover {
+  background: var(--accent);
+  filter: brightness(1.1);
+}
+
+.seed {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.about {
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.about p {
+  margin: 0 0 0.5rem;
+}
+
+.below-text {
+  display: none;
+}
+
+@media (max-width: 52rem) {
+  .beside-text {
+    display: none;
+  }
+
+  .below-text {
+    display: block;
+  }
+}
+
+/* The arrangements */
+
+.output {
+  max-width: 46rem;
+}
+
+.output-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.count {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* An empty status stays in place, for screen readers to hear what it says next, but takes no room. */
+.actions > .status:empty {
+  margin-inline-end: -0.5rem;
+}
+
+.page {
+  max-width: 46rem;
+  padding: 2rem 2.25rem;
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 8px 24px rgb(60 40 20 / 0.06);
+}
+
+.message {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* Numbered in columns, each number set small beside its letters. */
+.arrangements {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: arrangement;
+  columns: 3 12rem;
+  column-gap: 2rem;
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  line-height: 1.9;
+  letter-spacing: 0.1em;
+}
+
+.arrangements li {
+  counter-increment: arrangement;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  overflow-wrap: anywhere;
+  break-inside: avoid;
+}
+
+.arrangements li::before {
+  content: counter(arrangement);
+  flex: none;
+  min-width: 1.4rem;
+  text-align: right;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+/* A long text's arrangements, one to a line. */
+.page.long .arrangements {
+  columns: auto;
+}
+
+@media (max-width: 52rem) {
+  .page {
+    padding: 1.25rem;
+  }
+}

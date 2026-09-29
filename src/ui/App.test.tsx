@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
+import { DEFAULT_SETTINGS } from './settings';
+import { decodeState, encodeState } from './urlState';
 
 // Seeds come in a fixed sequence, so every run shows the same arrangements.
 let nextSeed = 1;
@@ -13,6 +15,7 @@ vi.mock('../engine/rng', async (importOriginal) => ({
 
 beforeEach(() => {
   nextSeed = 1;
+  window.history.replaceState(null, '', '/');
 });
 afterEach(cleanup);
 
@@ -162,5 +165,47 @@ describe('App', () => {
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('denied'));
     await user.click(screen.getByRole('button', { name: 'Copy' }));
     expect(screen.getByRole('status')).toHaveTextContent(/Couldn’t copy/);
+  });
+});
+
+describe('Links', () => {
+  it('keeps the page in its URL, without spelling out the text', async () => {
+    await start('Open sesame');
+    await waitFor(() => expect(window.location.hash).toMatch(/^#s=/));
+    expect(window.location.hash.toLowerCase()).not.toContain('sesame');
+    expect(await decodeState(window.location.hash)).toEqual({ text: 'Open sesame', seed: 1, settings: DEFAULT_SETTINGS });
+  });
+
+  it('shares a link that brings back the same list', async () => {
+    const { user } = await start('Open sesame');
+    await user.click(screen.getByRole('radio', { name: 'Hard' }));
+    await user.click(screen.getByRole('radio', { name: 'Tiles' }));
+    const list = shown();
+    await user.click(screen.getByRole('button', { name: 'Share link' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Link copied');
+    const link = new URL(await navigator.clipboard.readText());
+    cleanup();
+
+    render(<App initial={await decodeState(link.hash)} />);
+    expect(textBox()).toHaveValue('Open sesame');
+    expect(screen.getByRole('radio', { name: 'Hard' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Tiles' })).toBeChecked();
+    expect(screen.getByText('Seed 1')).toBeInTheDocument();
+    expect(shown()).toEqual(list);
+  });
+
+  it('follows a link pasted into the address bar', async () => {
+    render(<App />);
+    window.location.hash = await encodeState({ text: 'Mellon', seed: 42, settings: { ...DEFAULT_SETTINGS, letterCase: 'lower' } });
+    await waitFor(() => expect(textBox()).toHaveValue('Mellon'));
+    expect(screen.getByText('Seed 42')).toBeInTheDocument();
+    for (const arrangement of shown()) expect(arrangement).toMatch(/^[a-z]{6}$/);
+  });
+
+  it('clears the URL when the page is emptied', async () => {
+    const { user } = await start('a');
+    await waitFor(() => expect(window.location.hash).toMatch(/^#s=/));
+    await user.clear(textBox());
+    await waitFor(() => expect(window.location.hash).toBe(''));
   });
 });

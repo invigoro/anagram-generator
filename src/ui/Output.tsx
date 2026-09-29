@@ -10,12 +10,14 @@ interface OutputProps {
   text: Text;
   scramble: Scramble;
   settings: Settings;
+  /** A link that brings back this list. */
+  shareLink: () => Promise<string>;
 }
 
 /** A number of arrangements, briefly. */
 const many = (n: number) => (n > 1_000_000 ? 'over a million' : n.toLocaleString('en'));
 
-export function Output({ typed, text, scramble, settings }: OutputProps) {
+export function Output({ typed, text, scramble, settings, shareLink }: OutputProps) {
   const { arrangements } = scramble;
   if (arrangements.length === 0) {
     return (
@@ -34,7 +36,7 @@ export function Output({ typed, text, scramble, settings }: OutputProps) {
     <section className="output" aria-label="Scrambled">
       <div className="output-bar">
         <p className="count">{summary(scramble, isStrict(settings))}</p>
-        <Actions copyText={copyText} />
+        <Actions copyText={copyText} shareLink={shareLink} />
       </div>
       {scramble.shortfalls.length > 0 && (
         <div className="notice" role="note">
@@ -115,7 +117,7 @@ function shortfallMessage(shortfall: Shortfall): string {
   }
 }
 
-function Actions({ copyText }: { copyText: string }) {
+function Actions({ copyText, shareLink }: { copyText: string; shareLink: () => Promise<string> }) {
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -124,13 +126,13 @@ function Actions({ copyText }: { copyText: string }) {
     return () => clearTimeout(timer);
   }, [status]);
 
-  async function copy() {
+  async function copy(text: string | Promise<string>, done: string, instead: string) {
     try {
-      await navigator.clipboard.writeText(copyText);
-      setStatus('Copied');
+      await navigator.clipboard.writeText(await text);
+      setStatus(done);
     } catch {
       // No clipboard access (an insecure page, or permission refused).
-      setStatus('Couldn’t copy. Select the arrangements and copy them instead.');
+      setStatus(`Couldn’t copy. ${instead}`);
     }
   }
 
@@ -139,8 +141,11 @@ function Actions({ copyText }: { copyText: string }) {
       <span role="status" className="status">
         {status ?? ''}
       </span>
-      <button type="button" onClick={copy}>
+      <button type="button" onClick={() => copy(copyText, 'Copied', 'Select the arrangements and copy them instead.')}>
         Copy
+      </button>
+      <button type="button" onClick={() => copy(shareLink(), 'Link copied', 'Copy the address from the address bar instead.')}>
+        Share link
       </button>
     </div>
   );

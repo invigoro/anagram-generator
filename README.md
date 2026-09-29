@@ -50,6 +50,33 @@ spells a slur or a swear word.
   - **Share link** copies a link that brings back the same list. The page's address always holds its
     settings, compressed, so it never spells out a password during a screen share.
 
+### Puzzles
+
+**Use as clue**, on any line of the list or on an anagram of your own, opens a puzzle card, with
+the text as the answer.
+
+- **Check the clue:** how much it gives away (letters in place, old neighbours still side by side,
+  and pieces of the answer left whole), and the other answers its letters spell. OPEN SESAME also
+  makes ENEMAS POSE, with the same word lengths. Tick the ones you'd accept.
+- **Hints:** the word lengths, then the first letters, then a letter more each time. Add a riddle,
+  and a line for when they get it.
+- **Show players** puts the clue over the page in large tiles, with a hint at a time, a fresh
+  shuffle, and the answer only when you ask twice.
+- **Player link** copies a link to a page for the players. They drag or swap the tiles, or type a
+  guess, and take as many hints as you allow. The page checks answers without holding them.
+- **Print** tiles to cut out and hand round the table, or a card with the riddle and the clue.
+- **In Stele:** carve it in granite, cast it in bronze or write it on parchment, with Stele's damage
+  kept off the writing. Roman lettering and runes can lose letters (Younger Futhark writes D and T
+  with one rune), so Sator says which of the clue's would suffer, and which runes keep them all.
+- **Pieces:** split the clue to hide around the place, a word to a piece or its letters shared out,
+  each piece to copy, print or put in Stele.
+- **Kind of puzzle** sets everything for a common one: a **password door**, or **scattered
+  letters** in three pieces.
+- **Hide it,** beside the text box, masks the answer on screen, for tables where players can see
+  your laptop.
+
+The puzzle is kept in the page's address too, so one made before the session comes back with it.
+
 It pairs with [Stele](https://stele.invigoro.me/), which carves or inks text onto a weathered
 object, and [Jabberwock](https://jabberwock.invigoro.me/), which writes text in made-up languages.
 

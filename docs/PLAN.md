@@ -12,7 +12,8 @@ other real words, for the players to work back. It does two jobs:
 
 The site must be static, hosted on GitHub Pages, and everything runs in the browser.
 
-**Current phase:** Phase 3. Phases 0 to 2 are done. See [Milestones](#milestones).
+**Current phase:** none. Phases 0 to 3 are done, and the backlog under [Milestones](#milestones)
+has what could come next.
 
 ## The approach
 
@@ -111,24 +112,27 @@ part their old neighbours.
 Any result can be chosen as the **clue** for a puzzle, which opens a puzzle card:
 
 - **Other answers:** the solver runs on the answer's letters and lists the other phrases players
-  might find. OPEN SESAME also makes PEON SESAME, with the same word lengths, and ONE MAPS SEE.
-  Each has "accept this too", for the player page's check.
+  might find. OPEN SESAME also makes ENEMAS POSE, with the same word lengths, and AMPS EON SEE.
+  Each can be ticked to accept it too, for the player page's check.
 - **How much it gives away:** letters left in their places, old neighbours still together, and the
   longest piece of the answer left whole (a clue containing SAME gives away most of SESAME).
 - **A hint ladder:** the word lengths (`_ _ _ _  _ _ _ _ _ _`), then the first letters, then one
   more letter at a time, and a riddle line of the game master's own.
 - **Show players:** the clue in large tiles over the page, like Jabberwock's Read aloud, with
-  larger and smaller type, "Reveal next hint" and "Shuffle again".
+  larger and smaller type, a hint at a time, "Shuffle again", and the answer only when asked twice.
 - **Player link:** a page with only the clue on it.
   - Players drag the tiles (or swap them from the keyboard), or type a guess.
   - Guesses are checked against salted hashes of the answer and any accepted alternatives.
+  - Players take as many of the hints as the game master allows.
   - A right answer shows the game master's line ("The door grinds open").
   - The page never loads the word list or the solver.
-- **Print:** letter tiles to cut out, or a card with the clue.
+- **Print:** letter tiles to cut out, or a card with the riddle and the clue.
 - **Open in Stele:** see [Working with Stele](#working-with-stele).
-- **Fragments:** the clue's letters split across rooms, statues or handouts, each with its own
-  copy, print and Stele buttons.
-- **Presets** such as "Password door" and "Scattered letters" set the options for common puzzles.
+- **Pieces:** the clue split across rooms, statues or handouts, a word to a piece or its letters
+  shared out evenly in order, each piece with its own copy, print and Stele buttons.
+- **Kind of puzzle:** Password door and Scattered letters set the options for common puzzles, and
+  what the puzzle starts with: its line for a right answer, its pieces and its Stele material. A
+  kind stays chosen only while the options are still its.
 
 ### Keeping the answer secret
 
@@ -148,14 +152,21 @@ This tool makes the clue, and [Stele](https://github.com/invigoro/Stele) puts it
 that has been deflate-raw compressed and base64url encoded, holding one text block on a medium.
 The encoder lives in one module, with a test that decodes a link the way Stele does.
 
-A clue only works if every letter survives, and three things in Stele can break one:
+The riddle, if there is one, goes above the clue. A clue only works if every letter survives, and
+three things in Stele can break one:
 
-- **Damage** can take letters away. The clue goes in `{{double braces}}`, which keeps damage off
-  it.
+- **Damage** can take letters away. Each line goes in `{{double braces}}`, which keeps damage
+  off it.
 - **Fade** wears the writing away, and `{{ }}` doesn't stop it, so the link sets fade low.
-- **Roman lettering** turns U into V and J into I, and **runes** can merge letters: Younger
-  Futhark writes B and P, D and T, and G and K with the same rune. The tool warns before either;
-  Elder Futhark merges the fewest.
+- **Roman lettering** turns U into V and J into I, and **runes** can lose letters. Each alphabet
+  gives some letters one rune (Younger Futhark writes B and P, D and T, and E, I and J alike), and
+  some pairs one rune (TH), and Elder and Younger Futhark carve a rune twice in a row once, so a
+  scramble with SS in it loses an S. Sator follows a copy of Stele's rune tables through the clue,
+  says which of its letters would suffer, and names the runes that keep them all, if any do.
+  Cuneiform isn't offered: it writes a word's sounds, not its letters.
+
+Runes also ask for Stele's runic typeface, which Stele's own page switches to but a link doesn't
+get otherwise.
 
 ## The word list
 
@@ -198,8 +209,6 @@ formerly SCOWL) by Kevin Atkinson.
 
 ## Project layout
 
-Items marked *(planned)* don't exist yet.
-
 ```
 .github/workflows/               # deploy.yml (main → Pages), test.yml (other branches)
 index.html · vite.config.ts · package.json · .nvmrc · tsconfig.json
@@ -219,11 +228,21 @@ src/
     pronounce.ts                 # the letter-trigram model: scoring, and letters chosen one at a time
     words.ts · solver.ts         # dictionaries filed by their letters; the search for phrases
     phrases.ts · hand.ts         # own words, giveaways, words put in; what an anagram by hand has left
-    hints.ts · puzzle.ts         # the hint ladder; puzzles and player links (planned)
-    stele.ts                     # Open in Stele links (planned, from Jabberwock)
+    hints.ts                     # the hint ladder
+    puzzle.ts                    # a clue's fit to its answer, what it gives away, its other answers, its pieces
+    check.ts                     # salted fingerprints of answers, for player links
+    stele.ts                     # the clue's Stele settings, and what Stele's lettering does to its letters
   workers/phrases.ts             # the phrase search, off the main thread
   data/words/                    # the word lists by size, their loader, and the letter model
-  ui/                            # React components, settings, the phrase search's hook, and the page's state in its URL
+  ui/                            # React: the page, its settings and kinds of puzzle, the phrase search's hook
+    App.tsx · Controls.tsx       # the page and its options
+    Output.tsx · Shown.tsx       # the list, and a line of it as letters or tiles
+    PuzzleCard.tsx · Pieces.tsx  # the puzzle card, and the clue in pieces
+    ShowPlayers.tsx              # the clue over the page, for the players
+    PrintSheet.tsx               # printouts: tiles to cut out, or a card
+    Player.tsx                   # the players' page, loaded on its own
+    urlState.ts · packing.ts     # the page's state in its URL, packed as Stele's links are
+    playerLink.ts · steleLink.ts # links for the players, and to Stele
 ```
 
 ## Milestones
@@ -263,7 +282,10 @@ want them. Pronounceable scrambles put a piece of the text left whole last, howe
 - *Done when* DORMITORY gives DIRTY ROOM near the top with Common words, and a 20-letter phrase
   gives results within a second without freezing the page.
 
-**Phase 3: Puzzles at the table.**
+**Phase 3: Puzzles at the table.** *(done. Each rune alphabet loses different letters, and a rune
+twice in a row is carved once, so the clue is checked against a copy of Stele's own rune tables
+rather than a rule of thumb; see [Working with Stele](#working-with-stele). A kind of puzzle
+stays chosen only while the options are still its.)*
 - Everything in [Puzzle tools](#puzzle-tools) and [Working with Stele](#working-with-stele).
 - *Done when* a game master can run a password door from start to finish: pick a clue with no
   unwanted other answers, reveal hints on screen, send a player link where the right arrangement
@@ -284,8 +306,11 @@ want them. Pronounceable scrambles put a piece of the text left whole last, howe
   worker are there for this.
 - **Ugly or offensive words:** Common words by default, ESDB's marks, and the blocklist.
 - **The answer leaking:** see [Keeping the answer secret](#keeping-the-answer-secret).
-- **Stele's link format changing:** the encoder lives in one tested module. It now lives in two
-  projects, and a plain `#text=` parameter in Stele would remove the coupling for both.
+- **Stele changing:** the link's settings and the copy of Stele's rune tables live in
+  `src/engine/stele.ts`, with tests, and the link itself in `src/ui/steleLink.ts`. The link
+  format lives in two projects now, and a plain `#text=` parameter in Stele would remove that
+  coupling for both. If Stele's rune tables change, the warnings are wrong until the copy is
+  updated.
 - **Download size:** each word list is its own file, loaded only when needed. The import script
   reports their sizes, and Large can be dropped if it's too heavy.
 

@@ -12,8 +12,8 @@ interface OutputProps {
 const LONG = 16;
 
 export function Output({ typed, letters, scramble }: OutputProps) {
-  const { arrangements, others } = scramble;
-  if (others === 0) {
+  const { arrangements } = scramble;
+  if (arrangements.length === 0) {
     return (
       <article className="page">
         <p className="message">
@@ -45,9 +45,9 @@ export function Output({ typed, letters, scramble }: OutputProps) {
 }
 
 /** "50 of 20,159 other arrangements", or "All 5 other arrangements" when that's every one. */
-function summary({ arrangements, others }: Scramble): string {
+function summary({ arrangements, others, complete }: Scramble): string {
   const shown = arrangements.length;
-  if (shown === others) return shown === 1 ? 'The only other arrangement' : `All ${shown} other arrangements`;
+  if (complete) return shown === 1 ? 'The only other arrangement' : `All ${shown} other arrangements`;
   const total = others > 1_000_000 ? 'over a million' : others.toLocaleString('en');
   return `${shown} of ${total} other arrangements`;
 }

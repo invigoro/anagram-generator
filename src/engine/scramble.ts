@@ -1,3 +1,4 @@
+import { isBlocked } from './blocklist';
 import { shuffled, type Random } from './rng';
 
 /**
@@ -48,18 +49,23 @@ export interface Scramble {
   arrangements: string[];
   /** How many arrangements there are besides the letters' own order, up to Number.MAX_SAFE_INTEGER. */
   others: number;
+  /** Whether these are every arrangement there is to show. */
+  complete: boolean;
 }
 
 /**
- * Up to `count` different arrangements of `letters`, each as likely as any other, and never the
- * letters' own order. When there are only a few, it has every one.
+ * Up to `count` different arrangements of `letters`, each as likely as any other. Never the
+ * letters' own order, and never one that spells a slur or a swear word. When there are only a
+ * few, it has every one.
  */
 export function scramble(letters: readonly string[], count: number, random: Random): Scramble {
   const own = letters.join('');
   const others = countArrangements(letters) - 1;
   if (others <= LIST_UP_TO) {
-    const every = Array.from(arrangements(letters), (arrangement) => arrangement.join('')).filter((arrangement) => arrangement !== own);
-    return { arrangements: shuffled(every, random).slice(0, count), others };
+    const every = Array.from(arrangements(letters), (arrangement) => arrangement.join('')).filter(
+      (arrangement) => arrangement !== own && !isBlocked(arrangement),
+    );
+    return { arrangements: shuffled(every, random).slice(0, count), others, complete: every.length <= count };
   }
   // Too many to list, so shuffle until there are enough different ones. With this many to choose
   // from, a repeat is rare, and the limit on tries is only a safeguard.
@@ -69,7 +75,7 @@ export function scramble(letters: readonly string[], count: number, random: Rand
     const arrangement = shuffled(letters, random).join('');
     if (seen.has(arrangement)) continue;
     seen.add(arrangement);
-    found.push(arrangement);
+    if (!isBlocked(arrangement)) found.push(arrangement);
   }
-  return { arrangements: found, others };
+  return { arrangements: found, others, complete: false };
 }

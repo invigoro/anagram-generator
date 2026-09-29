@@ -74,8 +74,28 @@ describe('scramble', () => {
 
   it('has nothing to give when every arrangement is the same', () => {
     for (const text of ['', 'A', 'AAA']) {
-      expect(scramble(letters(text), 50, mulberry32(1))).toEqual({ arrangements: [], others: 0 });
+      expect(scramble(letters(text), 50, mulberry32(1))).toEqual({ arrangements: [], others: 0, complete: true });
     }
+  });
+
+  it('never spells a slur or a swear word', () => {
+    const hits = scramble(letters('HITS'), 50, mulberry32(1));
+    expect(hits.arrangements).toHaveLength(22);
+    expect(hits.arrangements).not.toContain('SHIT');
+    expect(hits.complete).toBe(true);
+    // The worst are kept out from inside longer runs of letters too, whether the arrangements are
+    // listed (720 of them) or shuffled for (362,880, where about 1 in 500 would have it).
+    for (const text of ['FUCKAB', 'FUCKABDEG']) {
+      for (let seed = 0; seed < 50; seed++) {
+        for (const arrangement of scramble(letters(text), 50, mulberry32(seed)).arrangements) expect(arrangement).not.toContain('FUCK');
+      }
+    }
+  });
+
+  it('says whether it has every arrangement', () => {
+    expect(scramble(letters('CAT'), 50, mulberry32(1)).complete).toBe(true);
+    expect(scramble(letters('CAT'), 3, mulberry32(1)).complete).toBe(false);
+    expect(scramble(letters('PASSWORD'), 50, mulberry32(1)).complete).toBe(false);
   });
 
   it('is reproducible from the seed', () => {

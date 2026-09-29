@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Word lists are compared byte for byte, so they stay LF on every platform.
+*.txt text eol=lf
